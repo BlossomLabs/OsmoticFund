@@ -3,7 +3,13 @@
   "pipeline": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**"]
+      "outputs": ["dist/**", ".next/**", "cache/**", "out/**"]
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "inputs": ["test/**/*.t.sol"],
+      "outputs": [],
+      "env": ["FOUNDRY_PROFILE"]
     },
     "lint": {
       "outputs": []

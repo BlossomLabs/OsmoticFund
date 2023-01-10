@@ -1,0 +1,11 @@
+{
+  "name": "foundry",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "anvil",
+    "build": "forge build --sizes",
+    "lint": "forge fmt",
+    "test": "forge test -vvv"
+  }
+}
