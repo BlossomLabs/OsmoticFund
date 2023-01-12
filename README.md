@@ -1,6 +1,6 @@
-# Turborepo starter
+# Turborepo starter for web3 projects
 
-This is an official pnpm starter turborepo.
+This is a starter turborepo for web3 development.
 
 ## What's inside?
 
@@ -13,8 +13,13 @@ This turborepo uses [pnpm](https://pnpm.io) as a package manager. It includes th
 - `ui`: a stub React component library shared by both `web` and `docs` applications
 - `eslint-config-custom`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
 - `tsconfig`: `tsconfig.json`s used throughout the monorepo
+- `contracts`: a `Ethereum` smart contract development using Foundry
+- `subgraph`: a subgraph development environment using `The Graph`
+- `services`: a preconfigured Docker image for running a `Graph Node`
 
 Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+
+If this is your first time with Foundry, check out the [installation](https://github.com/foundry-rs/foundry#installation) instructions.
 
 ### Utilities
 
@@ -71,3 +76,6 @@ Learn more about the power of Turborepo:
 - [Filtering](https://turbo.build/repo/docs/core-concepts/monorepos/filtering)
 - [Configuration Options](https://turbo.build/repo/docs/reference/configuration)
 - [CLI Usage](https://turbo.build/repo/docs/reference/command-line-reference)
+- [Foundry book](https://book.getfoundry.sh)
+- [Creating a Subgraph](https://thegraph.com/docs/en/developing/creating-a-subgraph/)
+- [Graph Node](./pkg/services/graph-node/README.md)
