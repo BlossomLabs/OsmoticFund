@@ -8,7 +8,7 @@ importers:
       prettier: latest
       turbo: latest
     devDependencies:
-      eslint-config-custom: link:packages/eslint-config-custom
+      eslint-config-custom: link:pkg/eslint-config-custom
       prettier: 2.8.2
       turbo: 1.7.0
 
@@ -30,15 +30,15 @@ importers:
       next: 13.0.0_pjwopsidmaokadturxaafygjp4
       react: 18.2.0
       react-dom: 18.2.0_react@18.2.0
-      ui: link:../../packages/ui
+      ui: link:../../pkg/ui
     devDependencies:
       '@babel/core': 7.20.12
       '@types/node': 17.0.45
       '@types/react': 18.0.26
       '@types/react-dom': 18.0.10
       eslint: 7.32.0
-      eslint-config-custom: link:../../packages/eslint-config-custom
-      tsconfig: link:../../packages/tsconfig
+      eslint-config-custom: link:../../pkg/eslint-config-custom
+      tsconfig: link:../../pkg/tsconfig
       typescript: 4.9.4
 
   apps/web:
@@ -59,18 +59,21 @@ importers:
       next: 13.0.0_pjwopsidmaokadturxaafygjp4
       react: 18.2.0
       react-dom: 18.2.0_react@18.2.0
-      ui: link:../../packages/ui
+      ui: link:../../pkg/ui
     devDependencies:
       '@babel/core': 7.20.12
       '@types/node': 17.0.45
       '@types/react': 18.0.26
       '@types/react-dom': 18.0.10
       eslint: 7.32.0
-      eslint-config-custom: link:../../packages/eslint-config-custom
-      tsconfig: link:../../packages/tsconfig
+      eslint-config-custom: link:../../pkg/eslint-config-custom
+      tsconfig: link:../../pkg/tsconfig
       typescript: 4.9.4
 
-  packages/eslint-config-custom:
+  pkg/contracts:
+    specifiers: {}
+
+  pkg/eslint-config-custom:
     specifiers:
       eslint: ^7.23.0
       eslint-config-next: 13.0.0
@@ -87,7 +90,10 @@ importers:
     devDependencies:
       typescript: 4.9.4
 
-  packages/subgraph:
+  pkg/services:
+    specifiers: {}
+
+  pkg/subgraph:
     specifiers:
       '@graphprotocol/graph-cli': ^0.37.2
       '@graphprotocol/graph-ts': ^0.29.1
@@ -98,10 +104,10 @@ importers:
     devDependencies:
       mustache: 4.2.0
 
-  packages/tsconfig:
+  pkg/tsconfig:
     specifiers: {}
 
-  packages/ui:
+  pkg/ui:
     specifiers:
       '@types/react': ^18.0.17
       '@types/react-dom': ^18.0.6
@@ -4131,7 +4137,6 @@ packages:
     resolution: {integrity: sha512-N9iVG+CGJsI4b4ZGazjwLnxErD2d9Pe4DPvvXSxYA9tFNu8ymXME4Qs5HIQ0LMJpNM7zj+m0NlNnNeqFpKzqnA==}
     deprecated: Unmaintained
     dev: false
-    bundledDependencies: []
 
   /prop-types/15.8.1:
     resolution: {integrity: sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg==}
