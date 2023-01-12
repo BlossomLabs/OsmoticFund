@@ -6,6 +6,7 @@
     "dev": "anvil",
     "build": "forge build --sizes",
     "lint": "forge fmt",
-    "test": "forge test -vvv"
+    "test": "forge test -vvv",
+    "deploy": "forge script script/Counter.s.sol --rpc-url http://localhost:8545 --broadcast"
   }
 }

@@ -36,9 +36,12 @@ yarn-error.log*
 
 # foundry
 cache/
-out/
 
 # Ignores development broadcast logs
-!/broadcast
-/broadcast/*/31337/
-/broadcast/**/dry-run/
+!packages/contracts/broadcast
+packages/contracts/broadcast/*/31337/
+packages/contracts/broadcast/**/dry-run/
+
+# subgraph
+packages/subgraph/generated
+packages/**/data
