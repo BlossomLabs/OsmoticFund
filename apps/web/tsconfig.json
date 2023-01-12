@@ -2,6 +2,7 @@
   "extends": "tsconfig/nextjs.json",
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
   "compilerOptions": {
+    "preserveSymlinks": true,
     "paths": {
       "~/*": ["./*"]
     }
