@@ -3,19 +3,28 @@
   "pipeline": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "cache/**", "out/**"]
+      "outputs": [
+        "dist/**",
+        ".next/**",
+        "cache/**",
+        "out/**",
+        "build/**",
+        "generated/**"
+      ]
     },
     "test": {
       "dependsOn": ["build"],
       "inputs": ["test/**/*.t.sol"],
-      "outputs": [],
-      "env": ["FOUNDRY_PROFILE"]
+      "outputs": []
     },
     "lint": {
       "outputs": []
     },
     "dev": {
       "cache": false
+    },
+    "subgraph#build": {
+      "dependsOn": ["foundry#build"]
     }
   }
 }
