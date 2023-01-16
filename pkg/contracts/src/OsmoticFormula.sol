@@ -4,6 +4,14 @@ pragma solidity ^0.8.17;
 import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
 import {ABDKMath64x64} from "abdk-libraries/ABDKMath64x64.sol";
 
+// Exported struct for better osmotic parameter handling
+struct OsmoticParams {
+    uint256 decay;
+    uint256 drop;
+    uint256 maxFlow;
+    uint256 minStakeRatio;
+}
+
 abstract contract OsmoticFormula is Initializable {
     using ABDKMath64x64 for int128;
     using ABDKMath64x64 for uint256;
@@ -21,20 +29,18 @@ abstract contract OsmoticFormula is Initializable {
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
      */
-    function __OsmoticFormula_init(uint256 _decay, uint256 _drop, uint256 _maxFlow, uint256 _minStakeRatio)
-        internal
-        onlyInitializing
-    {
-        _setOsmoticParams(_decay, _drop, _maxFlow, _minStakeRatio);
+    function __OsmoticFormula_init(OsmoticParams memory _params) internal onlyInitializing {
+        _setOsmoticParams(_params);
     }
 
-    function _setOsmoticParams(uint256 _decay, uint256 _drop, uint256 _maxFlow, uint256 _minStakeRatio) internal {
-        decay = _decay.divu(1e18).add(1);
-        drop = _drop.divu(1e18).add(1);
-        maxFlow = _maxFlow.divu(1e18).add(1);
-        minStakeRatio = _minStakeRatio.divu(1e18).add(1);
+    // TODO: add a setter for each parameter
+    function _setOsmoticParams(OsmoticParams memory _params) internal {
+        decay = _params.decay.divu(1e18).add(1);
+        drop = _params.drop.divu(1e18).add(1);
+        maxFlow = _params.maxFlow.divu(1e18).add(1);
+        minStakeRatio = _params.minStakeRatio.divu(1e18).add(1);
 
-        emit OsmoticParamsChanged(_decay, _drop, _maxFlow, _minStakeRatio);
+        emit OsmoticParamsChanged(_params.decay, _params.drop, _params.maxFlow, _params.minStakeRatio);
     }
 
     function minStake(uint256 _totalStaked) public view returns (uint256) {
