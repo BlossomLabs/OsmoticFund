@@ -6,33 +6,37 @@ import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@oz-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OsmoticFormula, OsmoticParams} from "./OsmoticFormula.sol";
 import {ICFAv1Forwarder} from "./interfaces/ICFAv1Forwarder.sol";
+import {ProjectRegistry} from "./ProjectRegistry.sol";
+
+error ProjectNotFound(uint256 projectId);
 
 contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, OsmoticFormula {
     uint256 public immutable version;
     ICFAv1Forwarder public immutable cfaForwarder;
 
-    uint8 MAX_ACTIVE_PROJECTS = 15;
+    uint8 constant MAX_ACTIVE_PROJECTS = 15;
 
     address public fundingToken;
     address public governanceToken;
 
     OsmoticParams public osmoticParams;
+    ProjectRegistry public projectRegistry;
 
-    struct Project {
+    struct PoolProject {
         uint256 totalSupport;
-        bool active;
-        address beneficiary;
         uint256 flowLastRate;
         uint256 flowLastTime;
-        bytes32 projectId;
+        bool active;
+        bool registered;
         mapping(address => uint256) participantSupports;
-        address submitter;
     }
 
     // projectId => project
-    mapping(bytes32 => Project) public projects;
+    mapping(uint256 => PoolProject) public poolProjects;
     mapping(address => uint256) internal totalParticipantSupport;
-    bytes32[MAX_ACTIVE_PROJECTS] internal activeProjects;
+    uint256[MAX_ACTIVE_PROJECTS] internal activeProjectIds;
+
+    event PoolProjectRegistered(uint256 _projectId);
 
     // @custom:oz-upgrades-unsafe-allow constructor
     constructor(uint256 _version, ICFAv1Forwarder _cfaForwarder) {
@@ -41,10 +45,12 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
         _disableInitializers();
     }
 
-    function initialize(OsmoticParams _params) public initializer {
+    function initialize(OsmoticParams memory _params, ProjectRegistry _projectRegistry) public initializer {
         __Ownable_init();
         __UUPSUpgradeable_init();
         __OsmoticFormula_init(_params);
+
+        projectRegistry = _projectRegistry;
     }
 
     function implementation() external view returns (address) {
@@ -53,35 +59,33 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    function setPoolSettings(OsmoticParams _params) public onlyOwner {
+    function setPoolSettings(OsmoticParams memory _params) public onlyOwner {
         _setOsmoticParams(_params);
     }
 
-    function registerProposals(uint256[] memory _proposalIds, address[] memory _addresses) public onlyOwner {
-        for (uint256 i = 0; i < _proposalIds.length; i++) {
-            _registerProposal(_proposalIds[i], _addresses[i]);
+    function registerProject(uint256 _projectId) public {
+        _checkProject(_projectId);
+
+        _registerProject(_projectId);
+    }
+
+    function registerProjects(uint256[] memory _projectIds) public onlyOwner {
+        for (uint256 i = 0; i < _projectIds.length; i++) {
+            uint256 projectId = _projectIds[i];
+            _checkProject(projectId);
+            _registerProject(projectId);
         }
     }
 
-    function registerProposal(uint256 _proposalId, address _beneficiary) public {
-        require(_proposalId != 0);
-        require(_beneficiary != address(0));
-        require(!registeredBeneficiary[_beneficiary]);
+    function _registerProject(uint256 _projectId) internal {
+        poolProjects[_projectId].registered = true;
 
-        (uint256 amount,,,,,,, ProposalStatus status, address submmiter,) = cv.getProposal(_proposalId);
+        emit PoolProjectRegistered(_projectId);
+    }
 
-        if (status != ProposalStatus.Active) {
-            revert ProposalOnlyActive();
+    function _checkProject(uint256 _projectId) internal view {
+        if (!projectRegistry.projectExists(_projectId)) {
+            revert ProjectNotFound(_projectId);
         }
-
-        if (amount != 0) {
-            revert ProposalOnlySignaling();
-        }
-
-        if (msg.sender != submmiter) {
-            revert ProposalOnlySubmmiter();
-        }
-
-        _registerProposal(_proposalId, _beneficiary);
     }
 }
