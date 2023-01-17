@@ -43,6 +43,8 @@ contract ProjectRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     function initialize() public initializer {
         __Ownable_init();
         __UUPSUpgradeable_init();
+
+        nextProjectId = 1;
     }
 
     function implementation() external view returns (address) {
@@ -77,5 +79,11 @@ contract ProjectRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     function projectExists(uint256 _projectId) public view returns (bool) {
         return projects[_projectId].beneficiary != address(0);
+    }
+
+    function getProject(uint256 _projectId) public view returns (address _beneficiary, bytes memory _contenthash) {
+        Project memory project = projects[_projectId];
+
+        return (project.beneficiary, project.contenthash);
     }
 }

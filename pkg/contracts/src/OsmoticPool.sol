@@ -5,10 +5,12 @@ import {OwnableUpgradeable} from "@oz-upgradeable/access/OwnableUpgradeable.sol"
 import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@oz-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OsmoticFormula, OsmoticParams} from "./OsmoticFormula.sol";
-import {ICFAv1Forwarder} from "./interfaces/ICFAv1Forwarder.sol";
 import {ProjectRegistry} from "./ProjectRegistry.sol";
+import {ICFAv1Forwarder} from "./interfaces/ICFAv1Forwarder.sol";
 
 error ProjectNotFound(uint256 projectId);
+error ProjectAlreadyActive(uint256 projectId);
+error ProjectNeedsMoreStake(uint256 projectId, uint256 requiredStake, uint256 currentStake);
 
 contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, OsmoticFormula {
     uint256 public immutable version;
@@ -36,7 +38,9 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
     mapping(address => uint256) internal totalParticipantSupport;
     uint256[MAX_ACTIVE_PROJECTS] internal activeProjectIds;
 
-    event PoolProjectRegistered(uint256 _projectId);
+    event ProjectRegistered(uint256 indexed projectId);
+    event ProjectActivated(uint256 indexed id);
+    event ProjectDeactivated(uint256 indexed id);
 
     // @custom:oz-upgrades-unsafe-allow constructor
     constructor(uint256 _version, ICFAv1Forwarder _cfaForwarder) {
@@ -77,15 +81,67 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
         }
     }
 
+    function activateProject(uint256 _projectId) public {
+        require(poolProjects[_projectId].registered);
+
+        uint256 minSupport = poolProjects[_projectId].totalSupport;
+        uint256 minIndex = _projectId;
+
+        for (uint256 i = 0; i < activeProjectIds.length; i++) {
+            if (activeProjectIds[i] == _projectId) {
+                revert ProjectAlreadyActive(_projectId);
+            }
+            if (activeProjectIds[i] == 0) {
+                // If position i is empty, use it
+                minSupport = 0;
+                minIndex = i;
+                break;
+            }
+            if (poolProjects[activeProjectIds[i]].totalSupport < minSupport) {
+                minSupport = poolProjects[activeProjectIds[i]].totalSupport;
+                minIndex = i;
+            }
+        }
+
+        if (activeProjectIds[minIndex] == _projectId) {
+            revert ProjectNeedsMoreStake(_projectId, minSupport, poolProjects[_projectId].totalSupport);
+        }
+
+        if (activeProjectIds[minIndex] == 0) {
+            _activateProject(minIndex, _projectId);
+            return;
+        }
+
+        _deactivateProject(minIndex);
+        _activateProject(minIndex, _projectId);
+    }
+
     function _registerProject(uint256 _projectId) internal {
         poolProjects[_projectId].registered = true;
 
-        emit PoolProjectRegistered(_projectId);
+        emit ProjectRegistered(_projectId);
     }
 
     function _checkProject(uint256 _projectId) internal view {
         if (!projectRegistry.projectExists(_projectId)) {
             revert ProjectNotFound(_projectId);
         }
+    }
+
+    function _activateProject(uint256 _index, uint256 _projectId) internal {
+        activeProjectIds[_index] = _projectId;
+        poolProjects[_projectId].active = true;
+        poolProjects[_projectId].flowLastTime = block.timestamp;
+
+        emit ProjectActivated(_projectId);
+    }
+
+    function _deactivateProject(uint256 _index) internal {
+        uint256 projectId = activeProjectIds[_index];
+        poolProjects[projectId].active = false;
+        (address oldBeneficiary,) = projectRegistry.getProject(projectId);
+        cfaForwarder.setFlowrate(fundingToken, oldBeneficiary, 0);
+
+        emit ProjectDeactivated(projectId);
     }
 }
