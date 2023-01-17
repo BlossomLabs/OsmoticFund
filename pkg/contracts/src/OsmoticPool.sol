@@ -4,11 +4,13 @@ pragma solidity ^0.8.17;
 import {OwnableUpgradeable} from "@oz-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@oz-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {OsmoticFormula, OsmoticParams} from "./OsmoticFormula.sol";
 import {ProjectRegistry} from "./ProjectRegistry.sol";
 import {ICFAv1Forwarder} from "./interfaces/ICFAv1Forwarder.sol";
 
 error ProjectNotFound(uint256 projectId);
+error ProjectNotIncluded(uint256 projectId);
 error ProjectAlreadyActive(uint256 projectId);
 error ProjectNeedsMoreStake(uint256 projectId, uint256 requiredStake, uint256 currentStake);
 
@@ -18,29 +20,36 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
 
     uint8 constant MAX_ACTIVE_PROJECTS = 15;
 
-    address public fundingToken;
-    address public governanceToken;
-
-    OsmoticParams public osmoticParams;
-    ProjectRegistry public projectRegistry;
-
     struct PoolProject {
-        uint256 totalSupport;
+        uint256 projectSupport;
         uint256 flowLastRate;
         uint256 flowLastTime;
         bool active;
-        bool registered;
+        bool included;
+        /**
+         * We need to keep track of the beneficiary address in the pool because
+         * can be updated in the ProjectRegistry
+         */
+        address beneficiary;
         mapping(address => uint256) participantSupports;
     }
+
+    IERC20 public fundingToken;
+    IERC20 public governanceToken;
+    OsmoticParams public osmoticParams;
+    ProjectRegistry public projectRegistry;
+    uint256 public totalSupport;
 
     // projectId => project
     mapping(uint256 => PoolProject) public poolProjects;
     mapping(address => uint256) internal totalParticipantSupport;
     uint256[MAX_ACTIVE_PROJECTS] internal activeProjectIds;
 
-    event ProjectRegistered(uint256 indexed projectId);
-    event ProjectActivated(uint256 indexed id);
-    event ProjectDeactivated(uint256 indexed id);
+    event ProjectIncluded(uint256 indexed projectId);
+    event ProjectRemoved(uint256 indexed projectId);
+    event ProjectActivated(uint256 indexed projectId);
+    event ProjectDeactivated(uint256 indexed projectId);
+    event FlowSynced(uint256 indexed projectId, address beneficiary, uint256 flowRate);
 
     // @custom:oz-upgrades-unsafe-allow constructor
     constructor(uint256 _version, ICFAv1Forwarder _cfaForwarder) {
@@ -49,11 +58,18 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
         _disableInitializers();
     }
 
-    function initialize(OsmoticParams memory _params, ProjectRegistry _projectRegistry) public initializer {
+    function initialize(
+        IERC20 _fundingToken,
+        IERC20 _governanceToken,
+        OsmoticParams memory _params,
+        ProjectRegistry _projectRegistry
+    ) public initializer {
         __Ownable_init();
         __UUPSUpgradeable_init();
         __OsmoticFormula_init(_params);
 
+        fundingToken = _fundingToken;
+        governanceToken = _governanceToken;
         projectRegistry = _projectRegistry;
     }
 
@@ -67,24 +83,32 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
         _setOsmoticParams(_params);
     }
 
-    function registerProject(uint256 _projectId) public {
-        _checkProject(_projectId);
-
-        _registerProject(_projectId);
+    function addProject(uint256 _projectId) public onlyOwner {
+        _addProject(_projectId);
     }
 
-    function registerProjects(uint256[] memory _projectIds) public onlyOwner {
+    function addProjects(uint256[] memory _projectIds) public onlyOwner {
         for (uint256 i = 0; i < _projectIds.length; i++) {
             uint256 projectId = _projectIds[i];
-            _checkProject(projectId);
-            _registerProject(projectId);
+            _addProject(projectId);
         }
     }
 
-    function activateProject(uint256 _projectId) public {
-        require(poolProjects[_projectId].registered);
+    function removeProjects(uint256[] memory _projectIds) public onlyOwner {
+        for (uint256 i = 0; i < _projectIds.length; i++) {
+            uint256 projectId = _projectIds[i];
+            _removeProject(projectId);
+        }
+    }
 
-        uint256 minSupport = poolProjects[_projectId].totalSupport;
+    function removeProject(uint256 _projectId) public onlyOwner {
+        _removeProject(_projectId);
+    }
+
+    function activateProject(uint256 _projectId) public {
+        require(poolProjects[_projectId].included);
+
+        uint256 minSupport = poolProjects[_projectId].projectSupport;
         uint256 minIndex = _projectId;
 
         for (uint256 i = 0; i < activeProjectIds.length; i++) {
@@ -97,14 +121,14 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
                 minIndex = i;
                 break;
             }
-            if (poolProjects[activeProjectIds[i]].totalSupport < minSupport) {
-                minSupport = poolProjects[activeProjectIds[i]].totalSupport;
+            if (poolProjects[activeProjectIds[i]].projectSupport < minSupport) {
+                minSupport = poolProjects[activeProjectIds[i]].projectSupport;
                 minIndex = i;
             }
         }
 
         if (activeProjectIds[minIndex] == _projectId) {
-            revert ProjectNeedsMoreStake(_projectId, minSupport, poolProjects[_projectId].totalSupport);
+            revert ProjectNeedsMoreStake(_projectId, minSupport, poolProjects[_projectId].projectSupport);
         }
 
         if (activeProjectIds[minIndex] == 0) {
@@ -116,16 +140,71 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
         _activateProject(minIndex, _projectId);
     }
 
-    function _registerProject(uint256 _projectId) internal {
-        poolProjects[_projectId].registered = true;
+    function sync() external {
+        // TODO: consider using allowance() + balanceOf()
+        uint256 funds = fundingToken.balanceOf(address(this));
+        for (uint256 i = 0; i < activeProjectIds.length; i++) {
+            uint256 projectId = activeProjectIds[i];
+            if (poolProjects[projectId].flowLastTime == block.timestamp || projectId == 0) {
+                continue; // Empty or rates already updated
+            }
 
-        emit ProjectRegistered(_projectId);
+            // Check the beneficiary doesn't change
+            (address beneficiary,) = projectRegistry.getProject(projectId);
+            address oldBeneficiary = poolProjects[projectId].beneficiary;
+            if (oldBeneficiary != beneficiary) {
+                // Remove the flow from the old beneficiary if it has changed
+                if (oldBeneficiary != address(0)) {
+                    cfaForwarder.setFlowrate(fundingToken, oldBeneficiary, 0);
+                }
+                // We don't have to update the flow rate because it will be updated next
+                poolProjects[projectId].beneficiary = beneficiary;
+            }
+
+            uint256 currentRate = _getCurrentRate(projectId, funds);
+            cfaForwarder.setFlowrate(fundingToken, beneficiary, int96(int256(currentRate)));
+
+            poolProjects[projectId].flowLastRate = currentRate;
+            poolProjects[projectId].flowLastTime = block.timestamp;
+
+            emit FlowSynced(projectId, beneficiary, currentRate);
+        }
+    }
+
+    function getCurrentRate(uint256 _projectId) external view returns (uint256) {
+        return _getCurrentRate(_projectId, fundingToken.balanceOf(address(this)));
+    }
+
+    function getTargetRate(uint256 _projectId) external view returns (uint256) {
+        return _getTargetRate(_projectId, fundingToken.balanceOf(address(this)));
     }
 
     function _checkProject(uint256 _projectId) internal view {
         if (!projectRegistry.projectExists(_projectId)) {
             revert ProjectNotFound(_projectId);
         }
+    }
+
+    function _addProject(uint256 _projectId) internal {
+        _checkProject(_projectId);
+        poolProjects[_projectId].included = true;
+
+        emit ProjectIncluded(_projectId);
+    }
+
+    function _removeProject(uint256 _projectId) internal {
+        _checkProject(_projectId);
+        for (uint256 i = 0; i < activeProjectIds.length; i++) {
+            if (activeProjectIds[i] == _projectId) {
+                _deactivateProject(i);
+                poolProjects[_projectId].included = false;
+
+                emit ProjectRemoved(_projectId);
+                return;
+            }
+        }
+
+        revert ProjectNotIncluded(_projectId);
     }
 
     function _activateProject(uint256 _index, uint256 _projectId) internal {
@@ -143,5 +222,20 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
         cfaForwarder.setFlowrate(fundingToken, oldBeneficiary, 0);
 
         emit ProjectDeactivated(projectId);
+    }
+
+    function _getTargetRate(uint256 _projectId, uint256 _funds) internal view returns (uint256) {
+        return calculateTargetRate(_funds, poolProjects[_projectId].projectSupport, totalSupport);
+    }
+
+    function _getCurrentRate(uint256 _projectId, uint256 _funds) internal view returns (uint256 _rate) {
+        PoolProject storage project = poolProjects[_projectId];
+        assert(project.flowLastTime <= block.timestamp);
+        uint256 timePassed = block.timestamp - project.flowLastTime;
+        return _rate = calculateRate(
+            timePassed, // we assert it doesn't overflow above
+            project.flowLastRate,
+            _getTargetRate(_projectId, _funds)
+        );
     }
 }

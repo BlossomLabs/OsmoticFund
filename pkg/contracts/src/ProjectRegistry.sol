@@ -53,7 +53,7 @@ contract ProjectRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    function addProject(address _beneficiary, bytes memory _contenthash) external returns (uint256 _projectId) {
+    function registrerProject(address _beneficiary, bytes memory _contenthash) external returns (uint256 _projectId) {
         _projectId = nextProjectId++;
 
         _updateProject(_projectId, _beneficiary, _contenthash);

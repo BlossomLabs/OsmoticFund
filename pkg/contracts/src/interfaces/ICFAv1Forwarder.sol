@@ -1,16 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
+import {IERC20} from "@oz/token/ERC20/IERC20.sol";
+
 interface ICFAv1Forwarder {
-    function createFlow(address token, address receiver, int96 flowRate, bytes calldata ctx)
-        external
-        returns (bytes memory newCtx);
+    function setFlowrate(IERC20 token, address receiver, int96 flowrate) external returns (bool);
 
-    function updateFlow(address token, address receiver, int96 flowRate, bytes calldata ctx)
-        external
-        returns (bytes memory newCtx);
-
-    function deleteFlow(address token, address sender, address receiver, bytes calldata ctx)
-        external
-        returns (bytes memory newCtx);
+    function getFlowrate(IERC20 token, address sender, address receiver) external view returns (int96 flowrate);
 }
