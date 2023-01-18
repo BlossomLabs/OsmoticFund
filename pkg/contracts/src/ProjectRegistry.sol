@@ -44,6 +44,7 @@ contract ProjectRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         __Ownable_init();
         __UUPSUpgradeable_init();
 
+        // We start at 1 to prevent using the default value 0 as ID of an active project of a pool
         nextProjectId = 1;
     }
 
