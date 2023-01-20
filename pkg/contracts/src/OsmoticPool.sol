@@ -19,6 +19,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
     ICFAv1Forwarder public immutable cfaForwarder;
 
     uint8 constant MAX_ACTIVE_PROJECTS = 15;
+    uint8 constant MAX_USER_PROJECTS = 10;
 
     struct PoolProject {
         uint256 projectSupport;
@@ -31,7 +32,17 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
          * can be updated in the ProjectRegistry
          */
         address beneficiary;
-        mapping(address => uint256) participantSupports;
+    }
+
+    struct ParticipantSupport {
+        uint256 projectId;
+        uint256 amount;
+        uint256 pct;
+    }
+
+    struct PoolParticipant {
+        uint256 participantSupport;
+        ParticipantSupport[] supportedProjects;
     }
 
     IERC20 public fundingToken;
@@ -42,7 +53,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
 
     // projectId => project
     mapping(uint256 => PoolProject) public poolProjects;
-    mapping(address => uint256) internal totalParticipantSupport;
+    mapping(address => PoolParticipant) poolParticipants;
     uint256[MAX_ACTIVE_PROJECTS] internal activeProjectIds;
 
     event ProjectIncluded(uint256 indexed projectId);
@@ -103,6 +114,78 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
 
     function removeProject(uint256 _projectId) public onlyOwner {
         _removeProject(_projectId);
+    }
+
+    function _findParticipantSupportIndex(address _participant, uint256 _projectId) internal view returns (uint256) {
+        ParticipantSupport[] storage support = poolParticipants[_participant].supportedProjects;
+        for (uint256 i = 0; i < support.length; i++) {
+            if (support[i].projectId == _projectId) {
+                return i;
+            }
+        }
+        return support.length;
+    }
+
+    function _updateProjectSupport(uint256 _projectId, address _from, uint256 _amount, uint256 _totalSupport)
+        internal
+        returns (uint256)
+    {
+        PoolProject storage project = poolProjects[_projectId];
+        uint256 _prevAmount =
+            poolParticipants[_from].supportedProjects[_findParticipantSupportIndex(_from, _projectId)].amount;
+        project.projectSupport = project.projectSupport - _prevAmount + _amount;
+        _totalSupport = _totalSupport - _prevAmount + _amount;
+        return _totalSupport;
+    }
+
+    function updateParticipantSupport(address _participant) public {
+        PoolParticipant storage participant = poolParticipants[_participant];
+        uint256 totalSupport_ = totalSupport;
+        uint256 participantSupport_ = 0;
+        uint256 balance = governanceToken.balanceOf(_participant);
+        for (uint256 i = 0; i < participant.supportedProjects.length; i++) {
+            uint256 newAmount = balance * participant.supportedProjects[i].pct / 1e18;
+            totalSupport_ = _updateProjectSupport(
+                participant.supportedProjects[i].projectId, _participant, newAmount, totalSupport_
+            );
+            participantSupport_ += newAmount;
+        }
+        participant.participantSupport = participantSupport_;
+        totalSupport = totalSupport_;
+    }
+
+    function supportProjects(uint256[] calldata _projectIds, uint256[] calldata _supportPcts) public {
+        require(_projectIds.length == _supportPcts.length, "ERROR_PROJECTS_SUPPORTS_LENGTH_MISMATCH");
+        require(_projectIds.length <= MAX_USER_PROJECTS, "ERROR_PROJECTS_SUPPORTS_LENGTH_EXCEEDS_MAX");
+        uint256 totalSupport_ = 0;
+        uint256 participantSupport = 0;
+
+        ParticipantSupport[] memory suports_ = new ParticipantSupport[](_projectIds.length);
+
+        for (uint256 i; i < _projectIds.length; i++) {
+            require(i == 0 || _projectIds[i] > _projectIds[i - 1], "ERROR_PROJECT_IDS_NOT_SORTED");
+            uint256 projectId = _projectIds[i];
+            _checkProject(projectId);
+            uint256 support = _supportPcts[i] * governanceToken.balanceOf(msg.sender) / 1e18;
+            suports_[i] = ParticipantSupport(projectId, support, _supportPcts[i]);
+            uint256 j = 0;
+            while (poolParticipants[msg.sender].supportedProjects[j].projectId < projectId) {
+                totalSupport_ = _updateProjectSupport(
+                    poolParticipants[msg.sender].supportedProjects[j].projectId, msg.sender, 0, totalSupport_
+                );
+                j++;
+            }
+            totalSupport_ = _updateProjectSupport(projectId, msg.sender, support, totalSupport_);
+            participantSupport += support;
+        }
+        require(participantSupport <= governanceToken.balanceOf(msg.sender), "ERROR_SUPPORT_EXCEEDS_BALANCE");
+        poolParticipants[msg.sender].participantSupport = participantSupport;
+        totalSupport = totalSupport_;
+
+        delete poolParticipants[msg.sender].supportedProjects;
+        for (uint256 i = 0; i < suports_.length; i++) {
+            poolParticipants[msg.sender].supportedProjects.push(suports_[i]);
+        }
     }
 
     function activateProject(uint256 _projectId) public {
