@@ -78,14 +78,20 @@ contract OsmoticController is Initializable, OwnableUpgradeable, UUPSUpgradeable
      * @return Whether the request to unlock tokens of a given owner should be allowed
      */
 
-    function canUnlock(address, uint256) external pure returns (bool) {
-        return false;
+    function canUnlock(address _user, uint256) external view returns (bool) {
+        return participantSupportedPools[_user] == 0;
     }
 
     function lockBalance(address _token, uint256 _amount) public {
         IStaking staking = IStaking(stakingFactory.getOrCreateInstance(_token));
 
         _lockBalance(staking, msg.sender, _amount);
+    }
+
+    function unlockBalance(address _token, uint256 _amount) public {
+        IStaking staking = IStaking(stakingFactory.getInstance(_token));
+
+        _unlockBalance(staking, msg.sender, _amount);
     }
 
     // TODO: wrap into a tuple both _projectIds and _supportDeltas
@@ -100,18 +106,15 @@ contract OsmoticController is Initializable, OwnableUpgradeable, UUPSUpgradeable
         _pool.changeProjectSupports(_projectIds, _supportDeltas);
     }
 
-    /**
-     * @dev Lock some tokens in the staking pool for a user
-     * @param _staking Staking pool for the ERC20 token to be locked
-     * @param _user Address of the user to lock tokens for
-     * @param _amount Amount of collateral tokens to be locked
-     */
-    function _lockBalance(IStaking _staking, address _user, uint256 _amount) internal {
-        if (_amount == 0) {
-            return;
-        }
+    function unsupportAndUnlock(
+        OsmoticPool _pool,
+        uint256 _unlockedAmount,
+        uint256[] calldata _projectIds,
+        int256[] calldata _supportDeltas
+    ) external {
+        _pool.changeProjectSupports(_projectIds, _supportDeltas);
 
-        _staking.lock(_user, _amount);
+        unlockBalance(address(_pool.governanceToken()), _unlockedAmount);
     }
 
     function getParticipantStaking(address _participant, address _token) public view returns (uint256) {
@@ -128,5 +131,33 @@ contract OsmoticController is Initializable, OwnableUpgradeable, UUPSUpgradeable
         participantSupportedPools[_participant]--;
 
         emit ParticipantSupportedPoolsChanged(_participant, participantSupportedPools[_participant]);
+    }
+
+    /**
+     * @dev Lock some tokens in the staking pool for a user
+     * @param _staking Staking pool for the ERC20 token to be locked
+     * @param _user Address of the user to lock tokens for
+     * @param _amount Amount of collateral tokens to be locked
+     */
+    function _lockBalance(IStaking _staking, address _user, uint256 _amount) internal {
+        if (_amount == 0) {
+            return;
+        }
+
+        _staking.lock(_user, _amount);
+    }
+
+    /**
+     * @dev Unlock some tokens in the staking pool for a user
+     * @param _staking Staking pool for the ERC20 token to be unlocked
+     * @param _user Address of the user to unlock tokens for
+     * @param _amount Amount of collateral tokens to be unlocked
+     */
+    function _unlockBalance(IStaking _staking, address _user, uint256 _amount) internal {
+        if (_amount == 0) {
+            return;
+        }
+
+        _staking.unlock(_user, address(this), _amount);
     }
 }
