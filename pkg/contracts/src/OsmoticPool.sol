@@ -8,17 +8,20 @@ import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {OsmoticFormula, OsmoticParams} from "./OsmoticFormula.sol";
 import {ProjectRegistry} from "./ProjectRegistry.sol";
 import {ICFAv1Forwarder} from "./interfaces/ICFAv1Forwarder.sol";
+import {OsmoticController} from "./OsmoticController.sol";
 
 error ProjectNotFound(uint256 projectId);
 error ProjectNotIncluded(uint256 projectId);
 error ProjectAlreadyActive(uint256 projectId);
 error ProjectNeedsMoreStake(uint256 projectId, uint256 requiredStake, uint256 currentStake);
+error SupportUnderflow();
 
 contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, OsmoticFormula {
     uint256 public immutable version;
     ICFAv1Forwarder public immutable cfaForwarder;
 
     uint8 constant MAX_ACTIVE_PROJECTS = 15;
+    uint8 constant MAX_USER_PROJECTS = 10;
 
     struct PoolProject {
         uint256 projectSupport;
@@ -34,14 +37,16 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
         mapping(address => uint256) participantSupports;
     }
 
+    OsmoticController controller;
     IERC20 public fundingToken;
     IERC20 public governanceToken;
     OsmoticParams public osmoticParams;
     ProjectRegistry public projectRegistry;
     uint256 public totalSupport;
 
-    // projectId => project
+    // projectId => PoolProject
     mapping(uint256 => PoolProject) public poolProjects;
+
     mapping(address => uint256) internal totalParticipantSupport;
     uint256[MAX_ACTIVE_PROJECTS] internal activeProjectIds;
 
@@ -50,6 +55,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
     event ProjectActivated(uint256 indexed projectId);
     event ProjectDeactivated(uint256 indexed projectId);
     event FlowSynced(uint256 indexed projectId, address beneficiary, uint256 flowRate);
+    event ProjectSupportChanged(uint256 indexed projectId, address participant, int256 delta);
 
     // @custom:oz-upgrades-unsafe-allow constructor
     constructor(uint256 _version, ICFAv1Forwarder _cfaForwarder) {
@@ -59,6 +65,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
     }
 
     function initialize(
+        OsmoticController _controller,
         IERC20 _fundingToken,
         IERC20 _governanceToken,
         OsmoticParams memory _params,
@@ -68,6 +75,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
         __UUPSUpgradeable_init();
         __OsmoticFormula_init(_params);
 
+        controller = _controller;
         fundingToken = _fundingToken;
         governanceToken = _governanceToken;
         projectRegistry = _projectRegistry;
@@ -207,6 +215,59 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
         revert ProjectNotIncluded(_projectId);
     }
 
+    /**
+     * @dev Support with an amount of tokens on a proposal
+     * TODO: wrap into a tuple both _projectIds and _supportDeltas
+     */
+    function changeProjectSupports(uint256[] calldata _projectIds, int256[] calldata _deltaSupports) external {
+        require(_projectIds.length <= MAX_USER_PROJECTS, "PROJECTS_EXCEEDS_MAX");
+        require(_projectIds.length == _deltaSupports.length, "PROJECTS_AND_SUPPORTS_MUST_MATCH");
+
+        uint256 availableStake = controller.getParticipantStaking(msg.sender, address(governanceToken));
+
+        require(availableStake > 0, "NO_STAKE_AVAILABLE");
+
+        int256 deltaSupportSum = 0;
+
+        // Check that the sum of supports is not greater than the available stake
+        for (uint256 i = 0; i < _projectIds.length; i++) {
+            deltaSupportSum += _deltaSupports[i];
+        }
+
+        uint256 oldTotalParticipantSupport = totalParticipantSupport[msg.sender];
+        uint256 newTotalParticipantSupport = _applyDelta(totalParticipantSupport[msg.sender], deltaSupportSum);
+
+        // Update the user total support
+        totalParticipantSupport[msg.sender] = newTotalParticipantSupport;
+
+        require(totalParticipantSupport[msg.sender] <= availableStake, "NOT_ENOUGH_STAKE");
+
+        for (uint256 i = 0; i < _projectIds.length; i++) {
+            uint256 projectId = _projectIds[i];
+            int256 delta = _deltaSupports[i];
+
+            _checkProject(projectId);
+            // TODO: maybe we'll use this function along with withdraw so we need to set supports to 0 in the future
+            require(delta != 0, "SUPPORT_CAN_NOT_BE_ZERO");
+
+            PoolProject storage project = poolProjects[projectId];
+
+            uint256 projectParticipantSupport = project.participantSupports[msg.sender];
+
+            project.projectSupport = _applyDelta(project.projectSupport, delta);
+            project.participantSupports[msg.sender] = _applyDelta(projectParticipantSupport, delta);
+
+            emit ProjectSupportChanged(projectId, msg.sender, delta);
+        }
+
+        // Notify the controller if the user is now supporting or unsupporting projects
+        if (oldTotalParticipantSupport > 0 && newTotalParticipantSupport == 0) {
+            controller.decreaseParticipantSupportedPools(msg.sender);
+        } else if (oldTotalParticipantSupport == 0 && newTotalParticipantSupport > 0) {
+            controller.increaseParticipantSupportedPools(msg.sender);
+        }
+    }
+
     function _activateProject(uint256 _index, uint256 _projectId) internal {
         activeProjectIds[_index] = _projectId;
         poolProjects[_projectId].active = true;
@@ -237,5 +298,14 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
             project.flowLastRate,
             _getTargetRate(_projectId, _funds)
         );
+    }
+
+    function _applyDelta(uint256 _support, int256 _delta) internal pure returns (uint256) {
+        int256 result = int256(_support) + _delta;
+
+        if (result < 0) {
+            revert SupportUnderflow();
+        }
+        return uint256(result);
     }
 }
