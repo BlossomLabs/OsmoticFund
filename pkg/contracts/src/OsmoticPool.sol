@@ -164,8 +164,8 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     }
 
     function sync() external {
-        // TODO: consider using allowance() + balanceOf()
-        uint256 funds = fundingToken.balanceOf(address(this));
+        // TODO: verify potential exploits using allowance updates that manipulate flow rates
+        uint256 funds = fundingToken.balanceOf(address(this)) + fundingToken.allowance(owner(), address(this));
         for (uint256 i = 0; i < activeProjectIds.length; i++) {
             uint256 projectId = activeProjectIds[i];
             if (poolProjects[projectId].flowLastTime == block.timestamp || projectId == 0) {
@@ -226,8 +226,6 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
             int256 delta = _participantUpdates[i].deltaSupport;
 
             _checkProject(projectId);
-            // TODO: maybe we'll use this function along with withdraw so we need to set supports to 0 in the future
-            require(delta != 0, "SUPPORT_CAN_NOT_BE_ZERO");
 
             PoolProject storage project = poolProjects[projectId];
 
