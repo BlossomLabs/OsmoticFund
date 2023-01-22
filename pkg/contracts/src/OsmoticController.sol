@@ -8,12 +8,12 @@ import {UUPSUpgradeable} from "@oz-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
+import {BeaconProxy} from "@oz/proxy/beacon/BeaconProxy.sol";
+import {UpgradeableBeacon} from "@oz/proxy/beacon/UpgradeableBeacon.sol";
 
 import {IStakingFactory} from "./interfaces/IStakingFactory.sol";
 import {ILockManager} from "./interfaces/ILockManager.sol";
 import {IStaking} from "./interfaces/IStaking.sol";
-
-import {OsmoticPoolFactory} from "./proxy/OsmoticPoolFactory.sol";
 
 import {OsmoticPool, ParticipantSupportUpdate} from "./OsmoticPool.sol";
 
@@ -22,9 +22,10 @@ error ErrorNotOsmoticPool();
 contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgradeable, UUPSUpgradeable, ILockManager {
     using SafeERC20 for IERC20;
 
+    UpgradeableBeacon internal immutable beacon;
+
     uint256 public immutable version;
 
-    OsmoticPoolFactory public poolFactory;
     IStakingFactory public stakingFactory; // For finding each collateral token's staking pool and locking/unlocking tokens
 
     mapping(address => bool) isPool;
@@ -35,6 +36,7 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
     /* ** Events                                                                                                                         ***/
     /* *************************************************************************************************************************************/
 
+    event OsmoticPoolCreated(address indexed pool);
     event ParticipantSupportedPoolsChanged(address indexed participant, uint256 supportedPools);
 
     /* *************************************************************************************************************************************/
@@ -49,11 +51,12 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
         _;
     }
 
-    constructor(uint256 _version, OsmoticPoolFactory _poolFactory, IStakingFactory _stakingFactory) {
+    constructor(uint256 _version, address _osmoticPoolImplementation, IStakingFactory _stakingFactory) {
         _disableInitializers();
 
+        beacon = new UpgradeableBeacon(_osmoticPoolImplementation);
+
         version = _version;
-        poolFactory = _poolFactory;
         stakingFactory = _stakingFactory;
     }
 
@@ -83,14 +86,25 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
         return _getImplementation();
     }
 
+    function osmoticPoolImplementation() external view returns (address) {
+        return beacon.implementation();
+    }
+
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+    function updateOsmoticPool(address _newImplementation) external onlyOwner {
+        beacon.upgradeTo(_newImplementation);
+    }
 
     /* *************************************************************************************************************************************/
     /* ** Pool Creation Function                                                                                                       ***/
     /* *************************************************************************************************************************************/
 
-    function createPool(bytes calldata _poolInitPayload) external whenNotPaused returns (address pool_) {
-        isPool[pool_ = poolFactory.createOsmoticPool(_poolInitPayload)] = true;
+    function createOsmoticPool(bytes calldata _poolInitPayload) external whenNotPaused returns (address pool_) {
+        pool_ = address(new BeaconProxy(address(beacon), _poolInitPayload));
+        isPool[pool_] = true;
+
+        emit OsmoticPoolCreated(pool_);
     }
 
     /* *************************************************************************************************************************************/
@@ -120,7 +134,7 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
     ) external whenNotPaused {
         lockBalance(address(_pool.governanceToken()), _lockedAmount);
 
-        _pool.changeProjectSupports(_participantUpdates);
+        _pool.updateProjectSupports(_participantUpdates);
     }
 
     function unsupportAndUnlock(
@@ -128,7 +142,7 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
         uint256 _unlockedAmount,
         ParticipantSupportUpdate[] calldata _participantUpdates
     ) external whenNotPaused {
-        _pool.changeProjectSupports(_participantUpdates);
+        _pool.updateProjectSupports(_participantUpdates);
 
         unlockBalance(address(_pool.governanceToken()), _unlockedAmount);
     }
