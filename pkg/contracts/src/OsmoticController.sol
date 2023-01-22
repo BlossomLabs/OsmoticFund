@@ -6,7 +6,6 @@ import {PausableUpgradeable} from "@oz-upgradeable/security/PausableUpgradeable.
 import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@oz-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-import {Address} from "@oz/utils/Address.sol";
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
 
@@ -19,7 +18,6 @@ import {OsmoticPoolFactory} from "./proxy/OsmoticPoolFactory.sol";
 import {OsmoticPool, ParticipantSupportUpdate} from "./OsmoticPool.sol";
 
 error ErrorNotOsmoticPool();
-error ErrorAddressNotContract(address _address);
 
 contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgradeable, UUPSUpgradeable, ILockManager {
     using SafeERC20 for IERC20;
@@ -27,13 +25,21 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
     uint256 public immutable version;
 
     OsmoticPoolFactory public poolFactory;
-    IStakingFactory public stakingFactory; // Staking factory, for finding each collateral token's staking pool
+    IStakingFactory public stakingFactory; // For finding each collateral token's staking pool and locking/unlocking tokens
 
     mapping(address => bool) isPool;
 
     mapping(address => uint256) internal participantSupportedPools; // Amount of pools supported by a participant
 
+    /* *************************************************************************************************************************************/
+    /* ** Events                                                                                                                         ***/
+    /* *************************************************************************************************************************************/
+
     event ParticipantSupportedPoolsChanged(address indexed participant, uint256 supportedPools);
+
+    /* *************************************************************************************************************************************/
+    /* ** Modifiers                                                                                                                      ***/
+    /* *************************************************************************************************************************************/
 
     modifier onlyPool(address _pool) {
         if (!isPool[_pool]) {
@@ -46,14 +52,6 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
     constructor(uint256 _version, OsmoticPoolFactory _poolFactory, IStakingFactory _stakingFactory) {
         _disableInitializers();
 
-        if (!Address.isContract(address(_poolFactory))) {
-            revert ErrorAddressNotContract(address(_poolFactory));
-        }
-
-        if (!Address.isContract(address(_stakingFactory))) {
-            revert ErrorAddressNotContract(address(_stakingFactory));
-        }
-
         version = _version;
         poolFactory = _poolFactory;
         stakingFactory = _stakingFactory;
@@ -65,6 +63,10 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
         __UUPSUpgradeable_init();
     }
 
+    /* *************************************************************************************************************************************/
+    /* ** Pausability Functions                                                                                                          ***/
+    /* *************************************************************************************************************************************/
+
     function pause() public onlyOwner {
         _pause();
     }
@@ -73,15 +75,27 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
         _unpause();
     }
 
+    /* *************************************************************************************************************************************/
+    /* ** Upgradeability Functions                                                                                                       ***/
+    /* *************************************************************************************************************************************/
+
     function implementation() external view returns (address) {
         return _getImplementation();
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
+    /* *************************************************************************************************************************************/
+    /* ** Pool Creation Function                                                                                                       ***/
+    /* *************************************************************************************************************************************/
+
     function createPool(bytes calldata _poolInitPayload) external whenNotPaused returns (address pool_) {
         isPool[pool_ = poolFactory.createOsmoticPool(_poolInitPayload)] = true;
     }
+
+    /* *************************************************************************************************************************************/
+    /* ** Locking Functions                                                                                                              ***/
+    /* *************************************************************************************************************************************/
 
     function lockBalance(address _token, uint256 _amount) public whenNotPaused {
         IStaking staking = IStaking(stakingFactory.getOrCreateInstance(_token));
@@ -94,6 +108,10 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
 
         _unlockBalance(staking, msg.sender, _amount);
     }
+
+    /* *************************************************************************************************************************************/
+    /* ** Locking and Supporting Functions                                                                                               ***/
+    /* *************************************************************************************************************************************/
 
     function lockAndSupport(
         OsmoticPool _pool,
@@ -115,6 +133,10 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
         unlockBalance(address(_pool.governanceToken()), _unlockedAmount);
     }
 
+    /* *************************************************************************************************************************************/
+    /* ** Participant Supported Pools Functions                                                                                          ***/
+    /* *************************************************************************************************************************************/
+
     function increaseParticipantSupportedPools(address _participant, address _pool)
         external
         whenNotPaused
@@ -135,11 +157,16 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
         emit ParticipantSupportedPoolsChanged(_participant, participantSupportedPools[_participant]);
     }
 
+    /* *************************************************************************************************************************************/
+    /* ** View Functions                                                                                                                 ***/
+    /* *************************************************************************************************************************************/
+
     /**
      * @dev ILockManager conformance.
-     *      The Staking contract checks this on each request to unlock an amount managed by this Agreement.
-     *      It always returns false to disable owners from unlocking their funds arbitrarily, as we
-     *      want to control the release of the locked amount when actions are closed or settled.
+     *      The Staking contract checks this on each request to unlock an amount managed by this Controller.
+     *      Check the participant amount of supported pools and disable owners from unlocking their funds
+     *      arbitrarily, as we want to control the release of the locked amount  when there is no remaining
+     *      supported pools.
      * @return Whether the request to unlock tokens of a given owner should be allowed
      */
     function canUnlock(address _user, uint256) external view returns (bool) {
@@ -149,6 +176,10 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
     function getParticipantStaking(address _participant, address _token) public view returns (uint256) {
         return IStaking(stakingFactory.getInstance(_token)).lockedBalanceOf(_participant);
     }
+
+    /* *************************************************************************************************************************************/
+    /* ** Internal Locking Functions                                                                                                     ***/
+    /* *************************************************************************************************************************************/
 
     /**
      * @dev Lock some tokens in the staking pool for a user
