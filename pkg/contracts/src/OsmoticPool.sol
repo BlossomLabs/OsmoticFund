@@ -218,8 +218,11 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     /* *************************************************************************************************************************************/
 
     function sync() external {
-        // TODO: verify potential exploits using allowance updates that manipulate flow rates
-        uint256 funds = fundingToken.balanceOf(address(this)) + fundingToken.allowance(owner(), address(this));
+        uint256 allowance = fundingToken.allowance(owner(), address(this));
+        if (allowance > 0) {
+            fundingToken.transferFrom(owner(), address(this), allowance);
+        }
+        uint256 funds = fundingToken.balanceOf(address(this));
         for (uint256 i = 0; i < activeProjectIds.length; i++) {
             uint256 projectId = activeProjectIds[i];
             if (poolProjects[projectId].flowLastTime == block.timestamp || projectId == 0) {
