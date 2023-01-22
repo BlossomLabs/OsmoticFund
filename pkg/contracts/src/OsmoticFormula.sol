@@ -2,6 +2,7 @@
 pragma solidity ^0.8.17;
 
 import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
+
 import {ABDKMath64x64} from "abdk-libraries/ABDKMath64x64.sol";
 
 // Exported struct for better osmotic parameter handling
@@ -24,6 +25,10 @@ abstract contract OsmoticFormula is Initializable {
     int128 public maxFlow;
     int128 public minStakeRatio;
 
+    /* *************************************************************************************************************************************/
+    /* ** Events                                                                                                                         ***/
+    /* *************************************************************************************************************************************/
+
     event OsmoticParamsChanged(uint256 decay, uint256 drop, uint256 maxFlow, uint256 minStakeRatio);
 
     /**
@@ -33,34 +38,9 @@ abstract contract OsmoticFormula is Initializable {
         _setOsmoticParams(_params);
     }
 
-    function _setOsmoticParams(OsmoticParams calldata _params) internal {
-        decay = _params.decay.divu(1e18).add(1);
-        drop = _params.drop.divu(1e18).add(1);
-        maxFlow = _params.maxFlow.divu(1e18).add(1);
-        minStakeRatio = _params.minStakeRatio.divu(1e18).add(1);
-
-        emit OsmoticParamsChanged(_params.decay, _params.drop, _params.maxFlow, _params.minStakeRatio);
-    }
-
-    function _setOsmoticDecay(uint256 _decay) internal {
-        decay = _decay.divu(1e18).add(1);
-        emit OsmoticParamsChanged(_decay, drop.mulu(1e18), maxFlow.mulu(1e18), minStakeRatio.mulu(1e18));
-    }
-
-    function _setOsmoticDrop(uint256 _drop) internal {
-        drop = _drop.divu(1e18).add(1);
-        emit OsmoticParamsChanged(decay.mulu(1e18), _drop, maxFlow.mulu(1e18), minStakeRatio.mulu(1e18));
-    }
-
-    function _setOsmoticMaxFlow(uint256 _maxFlow) internal {
-        maxFlow = _maxFlow.divu(1e18).add(1);
-        emit OsmoticParamsChanged(decay.mulu(1e18), drop.mulu(1e18), _maxFlow, minStakeRatio.mulu(1e18));
-    }
-
-    function _setOsmoticMinStakeRatio(uint256 _minStakeRatio) internal {
-        minStakeRatio = _minStakeRatio.divu(1e18).add(1);
-        emit OsmoticParamsChanged(decay.mulu(1e18), drop.mulu(1e18), maxFlow.mulu(1e18), _minStakeRatio);
-    }
+    /* *************************************************************************************************************************************/
+    /* ** View Functions                                                                                                                 ***/
+    /* *************************************************************************************************************************************/
 
     function minStake(uint256 _totalStaked) public view returns (uint256) {
         return minStakeRatio.mulu(_totalStaked);
@@ -90,5 +70,38 @@ abstract contract OsmoticFormula is Initializable {
     function calculateRate(uint256 _timePassed, uint256 _lastRate, uint256 _targetRate) public view returns (uint256) {
         int128 at = decay.pow(_timePassed);
         return at.mulu(_lastRate) + (ONE.sub(at).mulu(_targetRate)); // No need to check overflow on solidity >=0.8.0
+    }
+
+    /* *************************************************************************************************************************************/
+    /* ** Internal Osmotic Params Functions                                                                                                     ***/
+    /* *************************************************************************************************************************************/
+
+    function _setOsmoticParams(OsmoticParams calldata _params) internal {
+        decay = _params.decay.divu(1e18).add(1);
+        drop = _params.drop.divu(1e18).add(1);
+        maxFlow = _params.maxFlow.divu(1e18).add(1);
+        minStakeRatio = _params.minStakeRatio.divu(1e18).add(1);
+
+        emit OsmoticParamsChanged(_params.decay, _params.drop, _params.maxFlow, _params.minStakeRatio);
+    }
+
+    function _setOsmoticDecay(uint256 _decay) internal {
+        decay = _decay.divu(1e18).add(1);
+        emit OsmoticParamsChanged(_decay, drop.mulu(1e18), maxFlow.mulu(1e18), minStakeRatio.mulu(1e18));
+    }
+
+    function _setOsmoticDrop(uint256 _drop) internal {
+        drop = _drop.divu(1e18).add(1);
+        emit OsmoticParamsChanged(decay.mulu(1e18), _drop, maxFlow.mulu(1e18), minStakeRatio.mulu(1e18));
+    }
+
+    function _setOsmoticMaxFlow(uint256 _maxFlow) internal {
+        maxFlow = _maxFlow.divu(1e18).add(1);
+        emit OsmoticParamsChanged(decay.mulu(1e18), drop.mulu(1e18), _maxFlow, minStakeRatio.mulu(1e18));
+    }
+
+    function _setOsmoticMinStakeRatio(uint256 _minStakeRatio) internal {
+        minStakeRatio = _minStakeRatio.divu(1e18).add(1);
+        emit OsmoticParamsChanged(decay.mulu(1e18), drop.mulu(1e18), maxFlow.mulu(1e18), _minStakeRatio);
     }
 }
