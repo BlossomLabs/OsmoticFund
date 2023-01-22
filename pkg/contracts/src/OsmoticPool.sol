@@ -3,23 +3,31 @@ pragma solidity ^0.8.17;
 
 import {OwnableUpgradeable} from "@oz-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
+
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
-import {OsmoticFormula, OsmoticParams} from "./OsmoticFormula.sol";
-import {ProjectRegistry} from "./ProjectRegistry.sol";
+
 import {ICFAv1Forwarder} from "./interfaces/ICFAv1Forwarder.sol";
+
+import {ProjectRegistry} from "./ProjectRegistry.sol";
+import {OsmoticFormula, OsmoticParams} from "./OsmoticFormula.sol";
 import {OsmoticController} from "./OsmoticController.sol";
 
+error SupportUnderflow();
 error ProjectNotFound(uint256 projectId);
 error ProjectNotIncluded(uint256 projectId);
 error ProjectAlreadyActive(uint256 projectId);
 error ProjectNeedsMoreStake(uint256 projectId, uint256 requiredStake, uint256 currentStake);
-error SupportUnderflow();
+
+struct ParticipantSupportUpdate {
+    uint256 projectId;
+    int256 deltaSupport;
+}
 
 contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     ICFAv1Forwarder public immutable cfaForwarder;
 
     uint8 constant MAX_ACTIVE_PROJECTS = 15;
-    uint8 constant MAX_USER_PROJECTS = 10;
+    uint8 constant MAX_PARTICIPANT_UPDATES = 10;
 
     struct PoolProject {
         uint256 projectSupport;
@@ -46,6 +54,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     mapping(uint256 => PoolProject) public poolProjects;
 
     mapping(address => uint256) internal totalParticipantSupport;
+
     uint256[MAX_ACTIVE_PROJECTS] internal activeProjectIds;
 
     event ProjectIncluded(uint256 indexed projectId);
@@ -65,7 +74,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         OsmoticController _controller,
         IERC20 _fundingToken,
         IERC20 _governanceToken,
-        OsmoticParams memory _params,
+        OsmoticParams calldata _params,
         ProjectRegistry _projectRegistry
     ) public initializer {
         __Ownable_init();
@@ -77,22 +86,38 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         projectRegistry = _projectRegistry;
     }
 
-    function setPoolSettings(OsmoticParams memory _params) public onlyOwner {
+    function setOsmoticFormulaParams(OsmoticParams calldata _params) public onlyOwner {
         _setOsmoticParams(_params);
+    }
+
+    function setOsmoticFormulaDecay(uint256 _decay) public onlyOwner {
+        _setOsmoticDecay(_decay);
+    }
+
+    function setOsmoticDrop(uint256 _drop) public onlyOwner {
+        _setOsmoticDrop(_drop);
+    }
+
+    function setOsmoticMaxFlow(uint256 _minStakeRatio) public onlyOwner {
+        _setOsmoticMaxFlow(_minStakeRatio);
+    }
+
+    function setOsmoticMinStakeRatio(uint256 _minFlow) public onlyOwner {
+        _setOsmoticMinStakeRatio(_minFlow);
     }
 
     function addProject(uint256 _projectId) public onlyOwner {
         _addProject(_projectId);
     }
 
-    function addProjects(uint256[] memory _projectIds) public onlyOwner {
+    function addProjects(uint256[] calldata _projectIds) public onlyOwner {
         for (uint256 i = 0; i < _projectIds.length; i++) {
             uint256 projectId = _projectIds[i];
             _addProject(projectId);
         }
     }
 
-    function removeProjects(uint256[] memory _projectIds) public onlyOwner {
+    function removeProjects(uint256[] calldata _projectIds) public onlyOwner {
         for (uint256 i = 0; i < _projectIds.length; i++) {
             uint256 projectId = _projectIds[i];
             _removeProject(projectId);
@@ -169,6 +194,59 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         }
     }
 
+    /**
+     * @dev Support with an amount of tokens on a proposal
+     */
+    function changeProjectSupports(ParticipantSupportUpdate[] calldata _participantUpdates) external {
+        require(_participantUpdates.length <= MAX_PARTICIPANT_UPDATES, "UPDATES_EXCEEDS_MAX");
+
+        uint256 availableStake = controller.getParticipantStaking(msg.sender, address(governanceToken));
+
+        require(availableStake > 0, "NO_STAKE_AVAILABLE");
+
+        // We store the old support to check if we need to notify the controller
+        uint256 oldTotalParticipantSupport = totalParticipantSupport[msg.sender];
+
+        int256 deltaSupportSum = 0;
+        // Check that the sum of supports is not greater than the available stake
+        for (uint256 i = 0; i < _participantUpdates.length; i++) {
+            deltaSupportSum += _participantUpdates[i].deltaSupport;
+        }
+
+        uint256 newTotalParticipantSupport = _applyDelta(totalParticipantSupport[msg.sender], deltaSupportSum);
+
+        totalParticipantSupport[msg.sender] = newTotalParticipantSupport;
+
+        require(newTotalParticipantSupport <= availableStake, "NOT_ENOUGH_STAKE");
+
+        totalSupport = _applyDelta(totalSupport, deltaSupportSum);
+
+        for (uint256 i = 0; i < _participantUpdates.length; i++) {
+            uint256 projectId = _participantUpdates[i].projectId;
+            int256 delta = _participantUpdates[i].deltaSupport;
+
+            _checkProject(projectId);
+            // TODO: maybe we'll use this function along with withdraw so we need to set supports to 0 in the future
+            require(delta != 0, "SUPPORT_CAN_NOT_BE_ZERO");
+
+            PoolProject storage project = poolProjects[projectId];
+
+            uint256 projectParticipantSupport = project.participantSupports[msg.sender];
+
+            project.projectSupport = _applyDelta(project.projectSupport, delta);
+            project.participantSupports[msg.sender] = _applyDelta(projectParticipantSupport, delta);
+
+            emit ProjectSupportChanged(projectId, msg.sender, delta);
+        }
+
+        // Notify the controller if the user is now supporting or unsupporting projects
+        if (oldTotalParticipantSupport > 0 && newTotalParticipantSupport == 0) {
+            controller.decreaseParticipantSupportedPools(msg.sender);
+        } else if (oldTotalParticipantSupport == 0 && newTotalParticipantSupport > 0) {
+            controller.increaseParticipantSupportedPools(msg.sender);
+        }
+    }
+
     function getCurrentRate(uint256 _projectId) external view returns (uint256) {
         return _getCurrentRate(_projectId, fundingToken.balanceOf(address(this)));
     }
@@ -203,61 +281,6 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         }
 
         revert ProjectNotIncluded(_projectId);
-    }
-
-    /**
-     * @dev Support with an amount of tokens on a proposal
-     * TODO: wrap into a tuple both _projectIds and _supportDeltas
-     */
-    function changeProjectSupports(uint256[] calldata _projectIds, int256[] calldata _deltaSupports) external {
-        require(_projectIds.length <= MAX_USER_PROJECTS, "PROJECTS_EXCEEDS_MAX");
-        require(_projectIds.length == _deltaSupports.length, "PROJECTS_AND_SUPPORTS_MUST_MATCH");
-
-        uint256 availableStake = controller.getParticipantStaking(msg.sender, address(governanceToken));
-
-        require(availableStake > 0, "NO_STAKE_AVAILABLE");
-
-        int256 deltaSupportSum = 0;
-
-        // Check that the sum of supports is not greater than the available stake
-        for (uint256 i = 0; i < _projectIds.length; i++) {
-            deltaSupportSum += _deltaSupports[i];
-        }
-
-        uint256 oldTotalParticipantSupport = totalParticipantSupport[msg.sender];
-        uint256 newTotalParticipantSupport = _applyDelta(totalParticipantSupport[msg.sender], deltaSupportSum);
-
-        // Update the user total support
-        totalParticipantSupport[msg.sender] = newTotalParticipantSupport;
-
-        require(totalParticipantSupport[msg.sender] <= availableStake, "NOT_ENOUGH_STAKE");
-
-        totalSupport = _applyDelta(totalSupport, deltaSupportSum);
-
-        for (uint256 i = 0; i < _projectIds.length; i++) {
-            uint256 projectId = _projectIds[i];
-            int256 delta = _deltaSupports[i];
-
-            _checkProject(projectId);
-            // TODO: maybe we'll use this function along with withdraw so we need to set supports to 0 in the future
-            require(delta != 0, "SUPPORT_CAN_NOT_BE_ZERO");
-
-            PoolProject storage project = poolProjects[projectId];
-
-            uint256 projectParticipantSupport = project.participantSupports[msg.sender];
-
-            project.projectSupport = _applyDelta(project.projectSupport, delta);
-            project.participantSupports[msg.sender] = _applyDelta(projectParticipantSupport, delta);
-
-            emit ProjectSupportChanged(projectId, msg.sender, delta);
-        }
-
-        // Notify the controller if the user is now supporting or unsupporting projects
-        if (oldTotalParticipantSupport > 0 && newTotalParticipantSupport == 0) {
-            controller.decreaseParticipantSupportedPools(msg.sender);
-        } else if (oldTotalParticipantSupport == 0 && newTotalParticipantSupport > 0) {
-            controller.increaseParticipantSupportedPools(msg.sender);
-        }
     }
 
     function _activateProject(uint256 _index, uint256 _projectId) internal {

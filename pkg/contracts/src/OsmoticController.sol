@@ -16,7 +16,7 @@ import {IStaking} from "./interfaces/IStaking.sol";
 
 import {OsmoticPoolFactory} from "./proxy/OsmoticPoolFactory.sol";
 
-import {OsmoticPool} from "./OsmoticPool.sol";
+import {OsmoticPool, ParticipantSupportUpdate} from "./OsmoticPool.sol";
 
 error ErrorNotOsmoticPool();
 error ErrorAddressNotContract(address _address);
@@ -95,25 +95,22 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
         _unlockBalance(staking, msg.sender, _amount);
     }
 
-    // TODO: wrap into a tuple both _projectIds and _supportDeltas
     function lockAndSupport(
         OsmoticPool _pool,
         uint256 _lockedAmount,
-        uint256[] calldata _projectIds,
-        int256[] calldata _supportDeltas
+        ParticipantSupportUpdate[] calldata _participantUpdates
     ) external whenNotPaused {
         lockBalance(address(_pool.governanceToken()), _lockedAmount);
 
-        _pool.changeProjectSupports(_projectIds, _supportDeltas);
+        _pool.changeProjectSupports(_participantUpdates);
     }
 
     function unsupportAndUnlock(
         OsmoticPool _pool,
         uint256 _unlockedAmount,
-        uint256[] calldata _projectIds,
-        int256[] calldata _supportDeltas
+        ParticipantSupportUpdate[] calldata _participantUpdates
     ) external whenNotPaused {
-        _pool.changeProjectSupports(_projectIds, _supportDeltas);
+        _pool.changeProjectSupports(_participantUpdates);
 
         unlockBalance(address(_pool.governanceToken()), _unlockedAmount);
     }

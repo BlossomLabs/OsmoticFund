@@ -29,18 +29,37 @@ abstract contract OsmoticFormula is Initializable {
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
      */
-    function __OsmoticFormula_init(OsmoticParams memory _params) internal onlyInitializing {
+    function __OsmoticFormula_init(OsmoticParams calldata _params) internal onlyInitializing {
         _setOsmoticParams(_params);
     }
 
-    // TODO: add a setter for each parameter
-    function _setOsmoticParams(OsmoticParams memory _params) internal {
+    function _setOsmoticParams(OsmoticParams calldata _params) internal {
         decay = _params.decay.divu(1e18).add(1);
         drop = _params.drop.divu(1e18).add(1);
         maxFlow = _params.maxFlow.divu(1e18).add(1);
         minStakeRatio = _params.minStakeRatio.divu(1e18).add(1);
 
         emit OsmoticParamsChanged(_params.decay, _params.drop, _params.maxFlow, _params.minStakeRatio);
+    }
+
+    function _setOsmoticDecay(uint256 _decay) internal {
+        decay = _decay.divu(1e18).add(1);
+        emit OsmoticParamsChanged(_decay, drop.mulu(1e18), maxFlow.mulu(1e18), minStakeRatio.mulu(1e18));
+    }
+
+    function _setOsmoticDrop(uint256 _drop) internal {
+        drop = _drop.divu(1e18).add(1);
+        emit OsmoticParamsChanged(decay.mulu(1e18), _drop, maxFlow.mulu(1e18), minStakeRatio.mulu(1e18));
+    }
+
+    function _setOsmoticMaxFlow(uint256 _maxFlow) internal {
+        maxFlow = _maxFlow.divu(1e18).add(1);
+        emit OsmoticParamsChanged(decay.mulu(1e18), drop.mulu(1e18), _maxFlow, minStakeRatio.mulu(1e18));
+    }
+
+    function _setOsmoticMinStakeRatio(uint256 _minStakeRatio) internal {
+        minStakeRatio = _minStakeRatio.divu(1e18).add(1);
+        emit OsmoticParamsChanged(decay.mulu(1e18), drop.mulu(1e18), maxFlow.mulu(1e18), _minStakeRatio);
     }
 
     function minStake(uint256 _totalStaked) public view returns (uint256) {
