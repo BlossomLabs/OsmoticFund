@@ -241,9 +241,9 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
 
         // Notify the controller if the user is now supporting or unsupporting projects
         if (oldTotalParticipantSupport > 0 && newTotalParticipantSupport == 0) {
-            controller.decreaseParticipantSupportedPools(msg.sender);
+            controller.decreaseParticipantSupportedPools(msg.sender, address(this));
         } else if (oldTotalParticipantSupport == 0 && newTotalParticipantSupport > 0) {
-            controller.increaseParticipantSupportedPools(msg.sender);
+            controller.increaseParticipantSupportedPools(msg.sender, address(this));
         }
     }
 

@@ -35,8 +35,8 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
 
     event ParticipantSupportedPoolsChanged(address indexed participant, uint256 supportedPools);
 
-    modifier onlyPool() {
-        if (!isPool[msg.sender]) {
+    modifier onlyPool(address _pool) {
+        if (!isPool[_pool]) {
             revert ErrorNotOsmoticPool();
         }
 
@@ -79,8 +79,8 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    function createPool(bytes calldata _poolInitPayload) external whenNotPaused returns (address) {
-        return poolFactory.createOsmoticPool(_poolInitPayload);
+    function createPool(bytes calldata _poolInitPayload) external whenNotPaused returns (address pool_) {
+        isPool[pool_ = poolFactory.createOsmoticPool(_poolInitPayload)] = true;
     }
 
     function lockBalance(address _token, uint256 _amount) public whenNotPaused {
@@ -115,13 +115,21 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
         unlockBalance(address(_pool.governanceToken()), _unlockedAmount);
     }
 
-    function increaseParticipantSupportedPools(address _participant) external whenNotPaused onlyPool {
+    function increaseParticipantSupportedPools(address _participant, address _pool)
+        external
+        whenNotPaused
+        onlyPool(_pool)
+    {
         participantSupportedPools[_participant]++;
 
         emit ParticipantSupportedPoolsChanged(_participant, participantSupportedPools[_participant]);
     }
 
-    function decreaseParticipantSupportedPools(address _participant) external whenNotPaused onlyPool {
+    function decreaseParticipantSupportedPools(address _participant, address _pool)
+        external
+        whenNotPaused
+        onlyPool(_pool)
+    {
         participantSupportedPools[_participant]--;
 
         emit ParticipantSupportedPoolsChanged(_participant, participantSupportedPools[_participant]);
