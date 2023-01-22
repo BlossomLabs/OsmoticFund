@@ -12,7 +12,7 @@ import {IStakingFactory} from "./interfaces/IStakingFactory.sol";
 import {ILockManager} from "./interfaces/ILockManager.sol";
 import {IStaking} from "./interfaces/IStaking.sol";
 import {OsmoticPool} from "./OsmoticPool.sol";
-import {UUPSProxyFactory} from "./UUPSProxyFactory.sol";
+import {OsmoticPoolFactory} from "./OsmoticPoolFactory.sol";
 
 error ErrorAddressNotContract(address _address);
 error ErrorNotOsmoticPool();
@@ -22,7 +22,7 @@ contract OsmoticController is Initializable, OwnableUpgradeable, UUPSUpgradeable
 
     uint256 public immutable version;
 
-    UUPSProxyFactory public proxyFactory;
+    OsmoticPoolFactory public poolFactory;
     IStakingFactory public stakingFactory; // Staking factory, for finding each collateral token's staking pool
 
     mapping(address => bool) isPool;
@@ -39,11 +39,11 @@ contract OsmoticController is Initializable, OwnableUpgradeable, UUPSUpgradeable
         _;
     }
 
-    constructor(uint256 _version, UUPSProxyFactory _proxyFactory, IStakingFactory _stakingFactory) {
+    constructor(uint256 _version, OsmoticPoolFactory _poolFactory, IStakingFactory _stakingFactory) {
         _disableInitializers();
 
-        if (!Address.isContract(address(_proxyFactory))) {
-            revert ErrorAddressNotContract(address(_proxyFactory));
+        if (!Address.isContract(address(_poolFactory))) {
+            revert ErrorAddressNotContract(address(_poolFactory));
         }
 
         if (!Address.isContract(address(_stakingFactory))) {
@@ -51,13 +51,12 @@ contract OsmoticController is Initializable, OwnableUpgradeable, UUPSUpgradeable
         }
 
         version = _version;
-        proxyFactory = _proxyFactory;
+        poolFactory = _poolFactory;
         stakingFactory = _stakingFactory;
     }
 
     function initialize() public initializer {
         __Ownable_init();
-        __UUPSUpgradeable_init();
     }
 
     function implementation() external view returns (address) {
@@ -66,8 +65,8 @@ contract OsmoticController is Initializable, OwnableUpgradeable, UUPSUpgradeable
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    function createPool(address _poolImplementation, bytes memory _poolInitPayload) external returns (address) {
-        return proxyFactory.deploy(_poolImplementation, _poolInitPayload);
+    function createPool(bytes calldata _poolInitPayload) external returns (address) {
+        return poolFactory.createOsmoticPool(_poolInitPayload);
     }
 
     /**

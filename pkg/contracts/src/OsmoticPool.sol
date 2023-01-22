@@ -3,7 +3,6 @@ pragma solidity ^0.8.17;
 
 import {OwnableUpgradeable} from "@oz-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@oz-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {OsmoticFormula, OsmoticParams} from "./OsmoticFormula.sol";
 import {ProjectRegistry} from "./ProjectRegistry.sol";
@@ -16,8 +15,7 @@ error ProjectAlreadyActive(uint256 projectId);
 error ProjectNeedsMoreStake(uint256 projectId, uint256 requiredStake, uint256 currentStake);
 error SupportUnderflow();
 
-contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, OsmoticFormula {
-    uint256 public immutable version;
+contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     ICFAv1Forwarder public immutable cfaForwarder;
 
     uint8 constant MAX_ACTIVE_PROJECTS = 15;
@@ -58,8 +56,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
     event ProjectSupportChanged(uint256 indexed projectId, address participant, int256 delta);
 
     // @custom:oz-upgrades-unsafe-allow constructor
-    constructor(uint256 _version, ICFAv1Forwarder _cfaForwarder) {
-        version = _version;
+    constructor(ICFAv1Forwarder _cfaForwarder) {
         cfaForwarder = _cfaForwarder;
         _disableInitializers();
     }
@@ -72,7 +69,6 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
         ProjectRegistry _projectRegistry
     ) public initializer {
         __Ownable_init();
-        __UUPSUpgradeable_init();
         __OsmoticFormula_init(_params);
 
         controller = _controller;
@@ -80,12 +76,6 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
         governanceToken = _governanceToken;
         projectRegistry = _projectRegistry;
     }
-
-    function implementation() external view returns (address) {
-        return _getImplementation();
-    }
-
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     function setPoolSettings(OsmoticParams memory _params) public onlyOwner {
         _setOsmoticParams(_params);
@@ -241,6 +231,8 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, UUPSUpgradeable, Osmo
         totalParticipantSupport[msg.sender] = newTotalParticipantSupport;
 
         require(totalParticipantSupport[msg.sender] <= availableStake, "NOT_ENOUGH_STAKE");
+
+        totalSupport = _applyDelta(totalSupport, deltaSupportSum);
 
         for (uint256 i = 0; i < _projectIds.length; i++) {
             uint256 projectId = _projectIds[i];
