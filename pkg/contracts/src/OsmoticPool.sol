@@ -24,6 +24,10 @@ struct ParticipantSupportUpdate {
 }
 
 contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
+    ICFAv1Forwarder public immutable cfaForwarder;
+    OsmoticController public immutable controller;
+    ProjectRegistry public immutable projectRegistry;
+
     uint8 constant MAX_ACTIVE_PROJECTS = 15;
     uint8 constant MAX_PARTICIPANT_UPDATES = 10;
 
@@ -45,12 +49,9 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         mapping(address => uint256) participantSupports;
     }
 
-    ICFAv1Forwarder public cfaForwarder;
-    OsmoticController public controller;
     IERC20 public fundingToken;
     IERC20 public governanceToken;
     OsmoticParams public osmoticParams;
-    ProjectRegistry public projectRegistry;
     uint256 public totalSupport;
 
     // projectId => PoolProject
@@ -68,30 +69,26 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     event ProjectRemoved(uint256 indexed projectId);
     event ProjectActivated(uint256 indexed projectId);
     event ProjectDeactivated(uint256 indexed projectId);
-    event FlowSynced(uint256 indexed projectId, address beneficiary, uint256 flowRate);
     event ProjectSupportUpdated(uint256 indexed projectId, address participant, int256 delta);
+    event FlowSynced(uint256 indexed projectId, address beneficiary, uint256 flowRate);
 
-    // @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
+    constructor(ICFAv1Forwarder _cfaForwarder, OsmoticController _controller, ProjectRegistry _projectRegistry) {
         _disableInitializers();
+
+        cfaForwarder = _cfaForwarder;
+        controller = _controller;
+        projectRegistry = _projectRegistry;
     }
 
-    function initialize(
-        ICFAv1Forwarder _cfaForwarder,
-        OsmoticController _controller,
-        IERC20 _fundingToken,
-        IERC20 _governanceToken,
-        OsmoticParams calldata _params,
-        ProjectRegistry _projectRegistry
-    ) public initializer {
+    function initialize(IERC20 _fundingToken, IERC20 _governanceToken, OsmoticParams calldata _params)
+        public
+        initializer
+    {
         __Ownable_init();
         __OsmoticFormula_init(_params);
 
-        controller = _controller;
         fundingToken = _fundingToken;
         governanceToken = _governanceToken;
-        projectRegistry = _projectRegistry;
-        cfaForwarder = _cfaForwarder;
     }
 
     /* *************************************************************************************************************************************/
