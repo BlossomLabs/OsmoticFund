@@ -16,3 +16,7 @@
 	path = lib/staking
 	url = https://github.com/aragon/staking
 	branch = v0.3.2
+[submodule "lib/proxy-factory"]
+	path = lib/proxy-factory
+	url = https://github.com/maple-labs/proxy-factory
+	branch = v1.0.1
