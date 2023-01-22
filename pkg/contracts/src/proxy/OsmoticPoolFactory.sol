@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import {BeaconProxy} from "@oz/proxy/beacon/BeaconProxy.sol";
-import {OsmoticPool} from "./OsmoticPool.sol";
+import {OsmoticPool} from "../OsmoticPool.sol";
 import {OsmoticPoolBeacon} from "./OsmoticPoolBeacon.sol";
 
 contract OsmoticPoolFactory {

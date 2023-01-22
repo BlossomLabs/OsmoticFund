@@ -2,8 +2,10 @@
 pragma solidity ^0.8.17;
 
 import {OwnableUpgradeable} from "@oz-upgradeable/access/OwnableUpgradeable.sol";
+import {PausableUpgradeable} from "@oz-upgradeable/security/PausableUpgradeable.sol";
 import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@oz-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+
 import {Address} from "@oz/utils/Address.sol";
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
@@ -11,13 +13,15 @@ import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
 import {IStakingFactory} from "./interfaces/IStakingFactory.sol";
 import {ILockManager} from "./interfaces/ILockManager.sol";
 import {IStaking} from "./interfaces/IStaking.sol";
+
+import {OsmoticPoolFactory} from "./proxy/OsmoticPoolFactory.sol";
+
 import {OsmoticPool} from "./OsmoticPool.sol";
-import {OsmoticPoolFactory} from "./OsmoticPoolFactory.sol";
 
-error ErrorAddressNotContract(address _address);
 error ErrorNotOsmoticPool();
+error ErrorAddressNotContract(address _address);
 
-contract OsmoticController is Initializable, OwnableUpgradeable, UUPSUpgradeable, ILockManager {
+contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgradeable, UUPSUpgradeable, ILockManager {
     using SafeERC20 for IERC20;
 
     uint256 public immutable version;
@@ -56,7 +60,17 @@ contract OsmoticController is Initializable, OwnableUpgradeable, UUPSUpgradeable
     }
 
     function initialize() public initializer {
+        __Pausable_init();
         __Ownable_init();
+        __UUPSUpgradeable_init();
+    }
+
+    function pause() public onlyOwner {
+        _pause();
+    }
+
+    function unpause() public onlyOwner {
+        _unpause();
     }
 
     function implementation() external view returns (address) {
@@ -65,29 +79,17 @@ contract OsmoticController is Initializable, OwnableUpgradeable, UUPSUpgradeable
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    function createPool(bytes calldata _poolInitPayload) external returns (address) {
+    function createPool(bytes calldata _poolInitPayload) external whenNotPaused returns (address) {
         return poolFactory.createOsmoticPool(_poolInitPayload);
     }
 
-    /**
-     * @dev ILockManager conformance.
-     *      The Staking contract checks this on each request to unlock an amount managed by this Agreement.
-     *      It always returns false to disable owners from unlocking their funds arbitrarily, as we
-     *      want to control the release of the locked amount when actions are closed or settled.
-     * @return Whether the request to unlock tokens of a given owner should be allowed
-     */
-
-    function canUnlock(address _user, uint256) external view returns (bool) {
-        return participantSupportedPools[_user] == 0;
-    }
-
-    function lockBalance(address _token, uint256 _amount) public {
+    function lockBalance(address _token, uint256 _amount) public whenNotPaused {
         IStaking staking = IStaking(stakingFactory.getOrCreateInstance(_token));
 
         _lockBalance(staking, msg.sender, _amount);
     }
 
-    function unlockBalance(address _token, uint256 _amount) public {
+    function unlockBalance(address _token, uint256 _amount) public whenNotPaused {
         IStaking staking = IStaking(stakingFactory.getInstance(_token));
 
         _unlockBalance(staking, msg.sender, _amount);
@@ -99,7 +101,7 @@ contract OsmoticController is Initializable, OwnableUpgradeable, UUPSUpgradeable
         uint256 _lockedAmount,
         uint256[] calldata _projectIds,
         int256[] calldata _supportDeltas
-    ) external {
+    ) external whenNotPaused {
         lockBalance(address(_pool.governanceToken()), _lockedAmount);
 
         _pool.changeProjectSupports(_projectIds, _supportDeltas);
@@ -110,26 +112,37 @@ contract OsmoticController is Initializable, OwnableUpgradeable, UUPSUpgradeable
         uint256 _unlockedAmount,
         uint256[] calldata _projectIds,
         int256[] calldata _supportDeltas
-    ) external {
+    ) external whenNotPaused {
         _pool.changeProjectSupports(_projectIds, _supportDeltas);
 
         unlockBalance(address(_pool.governanceToken()), _unlockedAmount);
     }
 
-    function getParticipantStaking(address _participant, address _token) public view returns (uint256) {
-        return IStaking(stakingFactory.getInstance(_token)).lockedBalanceOf(_participant);
-    }
-
-    function increaseParticipantSupportedPools(address _participant) external onlyPool {
+    function increaseParticipantSupportedPools(address _participant) external whenNotPaused onlyPool {
         participantSupportedPools[_participant]++;
 
         emit ParticipantSupportedPoolsChanged(_participant, participantSupportedPools[_participant]);
     }
 
-    function decreaseParticipantSupportedPools(address _participant) external onlyPool {
+    function decreaseParticipantSupportedPools(address _participant) external whenNotPaused onlyPool {
         participantSupportedPools[_participant]--;
 
         emit ParticipantSupportedPoolsChanged(_participant, participantSupportedPools[_participant]);
+    }
+
+    /**
+     * @dev ILockManager conformance.
+     *      The Staking contract checks this on each request to unlock an amount managed by this Agreement.
+     *      It always returns false to disable owners from unlocking their funds arbitrarily, as we
+     *      want to control the release of the locked amount when actions are closed or settled.
+     * @return Whether the request to unlock tokens of a given owner should be allowed
+     */
+    function canUnlock(address _user, uint256) external view returns (bool) {
+        return participantSupportedPools[_user] == 0;
+    }
+
+    function getParticipantStaking(address _participant, address _token) public view returns (uint256) {
+        return IStaking(stakingFactory.getInstance(_token)).lockedBalanceOf(_participant);
     }
 
     /**
