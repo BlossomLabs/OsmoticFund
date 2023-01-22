@@ -1,6 +1,7 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.17;
 
+import {PausableUpgradeable} from "@oz-upgradeable/security/PausableUpgradeable.sol";
 import {OwnableUpgradeable} from "@oz-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@oz-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -12,24 +13,45 @@ import {IStakingFactory} from "./interfaces/IStakingFactory.sol";
 import {ILockManager} from "./interfaces/ILockManager.sol";
 import {IStaking} from "./interfaces/IStaking.sol";
 import {OsmoticPool} from "./OsmoticPool.sol";
-import {UUPSProxyFactory} from "./UUPSProxyFactory.sol";
 
 error ErrorAddressNotContract(address _address);
 error ErrorNotOsmoticPool();
 
-contract OsmoticController is Initializable, OwnableUpgradeable, UUPSUpgradeable, ILockManager {
+contract OsmoticController is ILockManager, Initializable, PausableUpgradeable, OwnableUpgradeable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
     uint256 public immutable version;
 
-    UUPSProxyFactory public proxyFactory;
+    struct PoolDelegate {
+        address ownedPool;
+        bool isPoolDelegate;
+    }
+
     IStakingFactory public stakingFactory; // Staking factory, for finding each collateral token's staking pool
 
-    mapping(address => bool) isPool;
+    mapping(address => bool) public isPool;
+    mapping(address => bool) public isPoolDeployer;
 
     mapping(address => uint256) internal participantSupportedPools; // Amount of pools supported by a participant
 
+    mapping(bytes32 => mapping(address => bool)) public isFactory;
+
+    mapping(address => PoolDelegate) public poolDelegates;
+
+    event ValidFactorySet(bytes32 indexed factoryKey_, address indexed factory_, bool indexed isValid_);
+    event ValidPoolDeployerSet(address indexed poolDeployer_, bool indexed isValid_);
+    event ValidPoolDelegateSet(address indexed account_, bool indexed isValid_);
     event ParticipantSupportedPoolsChanged(address indexed participant, uint256 supportedPools);
+
+    /**
+     *  @dev   The ownership of the pool manager was transferred.
+     *  @param fromPoolDelegate_ The address of the previous pool delegate.
+     *  @param toPoolDelegate_   The address of the new pool delegate.
+     *  @param poolManager_      The address of the pool manager.
+     */
+    event PoolManagerOwnershipTransferred(
+        address indexed fromPoolDelegate_, address indexed toPoolDelegate_, address indexed poolManager_
+    );
 
     modifier onlyPool() {
         if (!isPool[msg.sender]) {
@@ -39,25 +61,29 @@ contract OsmoticController is Initializable, OwnableUpgradeable, UUPSUpgradeable
         _;
     }
 
-    constructor(uint256 _version, UUPSProxyFactory _proxyFactory, IStakingFactory _stakingFactory) {
+    constructor(uint256 _version, IStakingFactory _stakingFactory) {
         _disableInitializers();
-
-        if (!Address.isContract(address(_proxyFactory))) {
-            revert ErrorAddressNotContract(address(_proxyFactory));
-        }
 
         if (!Address.isContract(address(_stakingFactory))) {
             revert ErrorAddressNotContract(address(_stakingFactory));
         }
 
         version = _version;
-        proxyFactory = _proxyFactory;
         stakingFactory = _stakingFactory;
     }
 
     function initialize() public initializer {
+        __Pausable_init();
         __Ownable_init();
         __UUPSUpgradeable_init();
+    }
+
+    function pause() public onlyOwner {
+        _pause();
+    }
+
+    function unpause() public onlyOwner {
+        _unpause();
     }
 
     function implementation() external view returns (address) {
@@ -66,8 +92,57 @@ contract OsmoticController is Initializable, OwnableUpgradeable, UUPSUpgradeable
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    function createPool(address _poolImplementation, bytes memory _poolInitPayload) external returns (address) {
-        return proxyFactory.deploy(_poolImplementation, _poolInitPayload);
+    /**
+     *
+     */
+    /**
+     * Allowlist Setters                                                                                                              **
+     */
+    /**
+     *
+     */
+
+    function setValidFactory(bytes32 factoryKey_, address factory_, bool isValid_) external onlyOwner {
+        isFactory[factoryKey_][factory_] = isValid_;
+        emit ValidFactorySet(factoryKey_, factory_, isValid_);
+    }
+
+    function setValidPoolDelegate(address account_, bool isValid_) external onlyOwner {
+        require(account_ != address(0), "OC:SVPD:ZERO_ADDRESS");
+
+        // Cannot remove pool delegates that own a pool manager.
+        require(isValid_ || poolDelegates[account_].ownedPool == address(0), "OC:SVPD:OWNS_POOL_MANAGER");
+
+        poolDelegates[account_].isPoolDelegate = isValid_;
+        emit ValidPoolDelegateSet(account_, isValid_);
+    }
+
+    function setValidPoolDeployer(address poolDeployer_, bool isValid_) public onlyOwner {
+        isPoolDeployer[poolDeployer_] = isValid_;
+        emit ValidPoolDeployerSet(poolDeployer_, isValid_);
+    }
+
+    /**
+     *
+     */
+    /**
+     * Contract Control Functions                                                                                                     **
+     */
+    /**
+     *
+     */
+    function transferOwnedPoolManager(address fromPoolDelegate_, address toPoolDelegate_) external {
+        PoolDelegate storage fromDelegate_ = poolDelegates[fromPoolDelegate_];
+        PoolDelegate storage toDelegate_ = poolDelegates[toPoolDelegate_];
+
+        require(fromDelegate_.ownedPool == msg.sender, "OC:TOPM:NOT_AUTHORIZED");
+        require(toDelegate_.isPoolDelegate, "OC:TOPM:NOT_POOL_DELEGATE");
+        require(toDelegate_.ownedPool == address(0), "OC:TOPM:ALREADY_OWNS");
+
+        fromDelegate_.ownedPool = address(0);
+        toDelegate_.ownedPool = msg.sender;
+
+        emit PoolManagerOwnershipTransferred(fromPoolDelegate_, toPoolDelegate_, msg.sender);
     }
 
     /**
@@ -117,10 +192,6 @@ contract OsmoticController is Initializable, OwnableUpgradeable, UUPSUpgradeable
         unlockBalance(address(_pool.governanceToken()), _unlockedAmount);
     }
 
-    function getParticipantStaking(address _participant, address _token) public view returns (uint256) {
-        return IStaking(stakingFactory.getInstance(_token)).lockedBalanceOf(_participant);
-    }
-
     function increaseParticipantSupportedPools(address _participant) external onlyPool {
         participantSupportedPools[_participant]++;
 
@@ -131,6 +202,24 @@ contract OsmoticController is Initializable, OwnableUpgradeable, UUPSUpgradeable
         participantSupportedPools[_participant]--;
 
         emit ParticipantSupportedPoolsChanged(_participant, participantSupportedPools[_participant]);
+    }
+
+    /**
+     *
+     */
+    /**
+     * View Functions                                                                                                                 **
+     */
+    /**
+     *
+     */
+
+    function isPoolDelegate(address account_) external view returns (bool isPoolDelegate_) {
+        isPoolDelegate_ = poolDelegates[account_].isPoolDelegate;
+    }
+
+    function getParticipantStaking(address _participant, address _token) public view returns (uint256) {
+        return IStaking(stakingFactory.getInstance(_token)).lockedBalanceOf(_participant);
     }
 
     /**
