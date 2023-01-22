@@ -24,10 +24,12 @@ struct ParticipantSupportUpdate {
 }
 
 contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
-    ICFAv1Forwarder public immutable cfaForwarder;
-
     uint8 constant MAX_ACTIVE_PROJECTS = 15;
     uint8 constant MAX_PARTICIPANT_UPDATES = 10;
+
+    /* *************************************************************************************************************************************/
+    /* ** Structs                                                                                                                        ***/
+    /* *************************************************************************************************************************************/
 
     struct PoolProject {
         uint256 projectSupport;
@@ -43,7 +45,8 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         mapping(address => uint256) participantSupports;
     }
 
-    OsmoticController controller;
+    ICFAv1Forwarder public cfaForwarder;
+    OsmoticController public controller;
     IERC20 public fundingToken;
     IERC20 public governanceToken;
     OsmoticParams public osmoticParams;
@@ -57,20 +60,24 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
 
     uint256[MAX_ACTIVE_PROJECTS] internal activeProjectIds;
 
+    /* *************************************************************************************************************************************/
+    /* ** Events                                                                                                                         ***/
+    /* *************************************************************************************************************************************/
+
     event ProjectIncluded(uint256 indexed projectId);
     event ProjectRemoved(uint256 indexed projectId);
     event ProjectActivated(uint256 indexed projectId);
     event ProjectDeactivated(uint256 indexed projectId);
     event FlowSynced(uint256 indexed projectId, address beneficiary, uint256 flowRate);
-    event ProjectSupportChanged(uint256 indexed projectId, address participant, int256 delta);
+    event ProjectSupportUpdated(uint256 indexed projectId, address participant, int256 delta);
 
     // @custom:oz-upgrades-unsafe-allow constructor
-    constructor(ICFAv1Forwarder _cfaForwarder) {
-        cfaForwarder = _cfaForwarder;
+    constructor() {
         _disableInitializers();
     }
 
     function initialize(
+        ICFAv1Forwarder _cfaForwarder,
         OsmoticController _controller,
         IERC20 _fundingToken,
         IERC20 _governanceToken,
@@ -84,49 +91,40 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         fundingToken = _fundingToken;
         governanceToken = _governanceToken;
         projectRegistry = _projectRegistry;
+        cfaForwarder = _cfaForwarder;
     }
 
-    function setOsmoticFormulaParams(OsmoticParams calldata _params) public onlyOwner {
-        _setOsmoticParams(_params);
-    }
-
-    function setOsmoticFormulaDecay(uint256 _decay) public onlyOwner {
-        _setOsmoticDecay(_decay);
-    }
-
-    function setOsmoticDrop(uint256 _drop) public onlyOwner {
-        _setOsmoticDrop(_drop);
-    }
-
-    function setOsmoticMaxFlow(uint256 _minStakeRatio) public onlyOwner {
-        _setOsmoticMaxFlow(_minStakeRatio);
-    }
-
-    function setOsmoticMinStakeRatio(uint256 _minFlow) public onlyOwner {
-        _setOsmoticMinStakeRatio(_minFlow);
-    }
+    /* *************************************************************************************************************************************/
+    /* ** Project Adding and Removing Functions                                                                                          ***/
+    /* *************************************************************************************************************************************/
 
     function addProject(uint256 _projectId) public onlyOwner {
+        _checkProject(_projectId);
         _addProject(_projectId);
     }
 
     function addProjects(uint256[] calldata _projectIds) public onlyOwner {
         for (uint256 i = 0; i < _projectIds.length; i++) {
             uint256 projectId = _projectIds[i];
-            _addProject(projectId);
+            addProject(projectId);
         }
+    }
+
+    function removeProject(uint256 _projectId) public onlyOwner {
+        _checkProject(_projectId);
+        _removeProject(_projectId);
     }
 
     function removeProjects(uint256[] calldata _projectIds) public onlyOwner {
         for (uint256 i = 0; i < _projectIds.length; i++) {
             uint256 projectId = _projectIds[i];
-            _removeProject(projectId);
+            removeProject(projectId);
         }
     }
 
-    function removeProject(uint256 _projectId) public onlyOwner {
-        _removeProject(_projectId);
-    }
+    /* *************************************************************************************************************************************/
+    /* ** Project Activation Function                                                                                                    ***/
+    /* *************************************************************************************************************************************/
 
     function activateProject(uint256 _projectId) public {
         require(poolProjects[_projectId].included);
@@ -163,41 +161,14 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         _activateProject(minIndex, _projectId);
     }
 
-    function sync() external {
-        // TODO: verify potential exploits using allowance updates that manipulate flow rates
-        uint256 funds = fundingToken.balanceOf(address(this)) + fundingToken.allowance(owner(), address(this));
-        for (uint256 i = 0; i < activeProjectIds.length; i++) {
-            uint256 projectId = activeProjectIds[i];
-            if (poolProjects[projectId].flowLastTime == block.timestamp || projectId == 0) {
-                continue; // Empty or rates already updated
-            }
-
-            // Check the beneficiary doesn't change
-            (address beneficiary,) = projectRegistry.getProject(projectId);
-            address oldBeneficiary = poolProjects[projectId].beneficiary;
-            if (oldBeneficiary != beneficiary) {
-                // Remove the flow from the old beneficiary if it has changed
-                if (oldBeneficiary != address(0)) {
-                    cfaForwarder.setFlowrate(fundingToken, oldBeneficiary, 0);
-                }
-                // We don't have to update the flow rate because it will be updated next
-                poolProjects[projectId].beneficiary = beneficiary;
-            }
-
-            uint256 currentRate = _getCurrentRate(projectId, funds);
-            cfaForwarder.setFlowrate(fundingToken, beneficiary, int96(int256(currentRate)));
-
-            poolProjects[projectId].flowLastRate = currentRate;
-            poolProjects[projectId].flowLastTime = block.timestamp;
-
-            emit FlowSynced(projectId, beneficiary, currentRate);
-        }
-    }
+    /* *************************************************************************************************************************************/
+    /* ** Participant Support Updating Function                                                                                                    ***/
+    /* *************************************************************************************************************************************/
 
     /**
      * @dev Support with an amount of tokens on a proposal
      */
-    function changeProjectSupports(ParticipantSupportUpdate[] calldata _participantUpdates) external {
+    function updateProjectSupports(ParticipantSupportUpdate[] calldata _participantUpdates) external {
         require(_participantUpdates.length <= MAX_PARTICIPANT_UPDATES, "UPDATES_EXCEEDS_MAX");
 
         uint256 availableStake = controller.getParticipantStaking(msg.sender, address(governanceToken));
@@ -234,7 +205,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
             project.projectSupport = _applyDelta(project.projectSupport, delta);
             project.participantSupports[msg.sender] = _applyDelta(projectParticipantSupport, delta);
 
-            emit ProjectSupportChanged(projectId, msg.sender, delta);
+            emit ProjectSupportUpdated(projectId, msg.sender, delta);
         }
 
         // Notify the controller if the user is now supporting or unsupporting projects
@@ -245,6 +216,69 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         }
     }
 
+    /* *************************************************************************************************************************************/
+    /* ** Flow Syncronization Function                                                                                                   ***/
+    /* *************************************************************************************************************************************/
+
+    function sync() external {
+        // TODO: verify potential exploits using allowance updates that manipulate flow rates
+        uint256 funds = fundingToken.balanceOf(address(this)) + fundingToken.allowance(owner(), address(this));
+        for (uint256 i = 0; i < activeProjectIds.length; i++) {
+            uint256 projectId = activeProjectIds[i];
+            if (poolProjects[projectId].flowLastTime == block.timestamp || projectId == 0) {
+                continue; // Empty or rates already updated
+            }
+
+            // Check the beneficiary doesn't change
+            (address beneficiary,) = projectRegistry.getProject(projectId);
+            address oldBeneficiary = poolProjects[projectId].beneficiary;
+            if (oldBeneficiary != beneficiary) {
+                // Remove the flow from the old beneficiary if it has changed
+                if (oldBeneficiary != address(0)) {
+                    cfaForwarder.setFlowrate(fundingToken, oldBeneficiary, 0);
+                }
+                // We don't have to update the flow rate because it will be updated next
+                poolProjects[projectId].beneficiary = beneficiary;
+            }
+
+            uint256 currentRate = _getCurrentRate(projectId, funds);
+            cfaForwarder.setFlowrate(fundingToken, beneficiary, int96(int256(currentRate)));
+
+            poolProjects[projectId].flowLastRate = currentRate;
+            poolProjects[projectId].flowLastTime = block.timestamp;
+
+            emit FlowSynced(projectId, beneficiary, currentRate);
+        }
+    }
+
+    /* *************************************************************************************************************************************/
+    /* ** Osmotic Params Functions                                                                                                       ***/
+    /* *************************************************************************************************************************************/
+
+    function setOsmoticFormulaParams(OsmoticParams calldata _params) public onlyOwner {
+        _setOsmoticParams(_params);
+    }
+
+    function setOsmoticFormulaDecay(uint256 _decay) public onlyOwner {
+        _setOsmoticDecay(_decay);
+    }
+
+    function setOsmoticDrop(uint256 _drop) public onlyOwner {
+        _setOsmoticDrop(_drop);
+    }
+
+    function setOsmoticMaxFlow(uint256 _minStakeRatio) public onlyOwner {
+        _setOsmoticMaxFlow(_minStakeRatio);
+    }
+
+    function setOsmoticMinStakeRatio(uint256 _minFlow) public onlyOwner {
+        _setOsmoticMinStakeRatio(_minFlow);
+    }
+
+    /* *************************************************************************************************************************************/
+    /* ** View Functions                                                                                                                 ***/
+    /* *************************************************************************************************************************************/
+
     function getCurrentRate(uint256 _projectId) external view returns (uint256) {
         return _getCurrentRate(_projectId, fundingToken.balanceOf(address(this)));
     }
@@ -253,33 +287,43 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         return _getTargetRate(_projectId, fundingToken.balanceOf(address(this)));
     }
 
+    /* *************************************************************************************************************************************/
+    /* ** Internal Project Helper Function                                                                                               ***/
+    /* *************************************************************************************************************************************/
+
     function _checkProject(uint256 _projectId) internal view {
         if (!projectRegistry.projectExists(_projectId)) {
             revert ProjectNotFound(_projectId);
         }
     }
 
+    /* *************************************************************************************************************************************/
+    /* ** Internal Project Adding and Removing Functions                                                                                 ***/
+    /* *************************************************************************************************************************************/
+
     function _addProject(uint256 _projectId) internal {
-        _checkProject(_projectId);
         poolProjects[_projectId].included = true;
 
         emit ProjectIncluded(_projectId);
     }
 
     function _removeProject(uint256 _projectId) internal {
-        _checkProject(_projectId);
-        for (uint256 i = 0; i < activeProjectIds.length; i++) {
-            if (activeProjectIds[i] == _projectId) {
-                _deactivateProject(i);
-                poolProjects[_projectId].included = false;
-
-                emit ProjectRemoved(_projectId);
-                return;
+        // TODO: enhance this for loop by storing the index of the project in the PoolProject
+        if (poolProjects[_projectId].active) {
+            for (uint256 i = 0; i < activeProjectIds.length; i++) {
+                if (activeProjectIds[i] == _projectId) {
+                    _deactivateProject(i);
+                }
             }
         }
 
-        revert ProjectNotIncluded(_projectId);
+        poolProjects[_projectId].included = false;
+        emit ProjectRemoved(_projectId);
     }
+
+    /* *************************************************************************************************************************************/
+    /* ** Internal Project Activation and Deactivation Functions                                                                         ***/
+    /* *************************************************************************************************************************************/
 
     function _activateProject(uint256 _index, uint256 _projectId) internal {
         activeProjectIds[_index] = _projectId;
@@ -298,6 +342,10 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         emit ProjectDeactivated(projectId);
     }
 
+    /* *************************************************************************************************************************************/
+    /* ** Internal Flow Rate Calculation Functions                                                                                       ***/
+    /* *************************************************************************************************************************************/
+
     function _getTargetRate(uint256 _projectId, uint256 _funds) internal view returns (uint256) {
         return calculateTargetRate(_funds, poolProjects[_projectId].projectSupport, totalSupport);
     }
@@ -312,6 +360,10 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
             _getTargetRate(_projectId, _funds)
         );
     }
+
+    /* *************************************************************************************************************************************/
+    /* ** Internal Helpers Functions                                                                                                     ***/
+    /* *************************************************************************************************************************************/
 
     function _applyDelta(uint256 _support, int256 _delta) internal pure returns (uint256) {
         int256 result = int256(_support) + _delta;
