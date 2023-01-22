@@ -5,16 +5,14 @@ import {OwnableUpgradeable} from "@oz-upgradeable/access/OwnableUpgradeable.sol"
 import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@oz-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
+import {IProjectList, Project} from "../interfaces/IProjectList.sol";
+
 error BeneficiaryNotProvided();
 error BeneficiaryAlreadyExists(address beneficiary);
+error ProjectDoesNotExist(uint256 projectId);
 
-contract ProjectRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
+contract ProjectRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable, IProjectList {
     uint256 public immutable version;
-
-    struct Project {
-        address beneficiary;
-        bytes contenthash;
-    }
 
     mapping(uint256 => Project) projects;
     mapping(address => bool) internal registeredBeneficiaries;
@@ -80,13 +78,11 @@ contract ProjectRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         emit ProjectUpdated(_projectId, _beneficiary, _contenthash);
     }
 
-    function projectExists(uint256 _projectId) public view returns (bool) {
-        return projects[_projectId].beneficiary != address(0);
+    function getProject(uint256 _projectId) public view returns (Project memory) {
+        return projects[_projectId];
     }
 
-    function getProject(uint256 _projectId) public view returns (address _beneficiary, bytes memory _contenthash) {
-        Project memory project = projects[_projectId];
-
-        return (project.beneficiary, project.contenthash);
+    function projectExists(uint256 _projectId) external view returns (bool) {
+        return projects[_projectId].beneficiary != address(0);
     }
 }
