@@ -146,6 +146,10 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         int256 deltaSupportSum = 0;
         // Check that the sum of supports is not greater than the available stake
         for (uint256 i = 0; i < _participantUpdates.length; i++) {
+            if (!projectList.projectExists(_participantUpdates[i].projectId)) {
+                revert ProjectNotInList(_participantUpdates[i].projectId);
+            }
+
             deltaSupportSum += _participantUpdates[i].deltaSupport;
         }
 
@@ -160,10 +164,6 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         for (uint256 i = 0; i < _participantUpdates.length; i++) {
             uint256 projectId = _participantUpdates[i].projectId;
             int256 delta = _participantUpdates[i].deltaSupport;
-
-            if (!projectList.projectExists(projectId)) {
-                revert ProjectNotInList(projectId);
-            }
 
             PoolProject storage project = poolProjects[projectId];
 
@@ -192,7 +192,9 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         if (allowance > 0) {
             fundingToken.transferFrom(owner(), address(this), allowance);
         }
+
         uint256 funds = fundingToken.balanceOf(address(this));
+
         for (uint256 i = 0; i < activeProjectIds.length; i++) {
             uint256 projectId = activeProjectIds[i];
             if (poolProjects[projectId].flowLastTime == block.timestamp || projectId == 0) {
@@ -201,6 +203,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
 
             // Check the beneficiary doesn't change
             Project memory project = projectList.getProject(projectId);
+
             address beneficiary = project.beneficiary;
             address oldBeneficiary = poolProjects[projectId].beneficiary;
 
