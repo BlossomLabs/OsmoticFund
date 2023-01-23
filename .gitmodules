@@ -16,3 +16,6 @@
 	path = lib/staking
 	url = https://github.com/aragon/staking
 	branch = v0.3.2
+[submodule "lib/upgrade-scripts"]
+	path = lib/upgrade-scripts
+	url = https://github.com/0xPhaze/upgrade-scripts

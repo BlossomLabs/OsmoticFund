@@ -7,6 +7,7 @@ import {UUPSUpgradeable} from "@oz-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import {IProjectList, Project} from "../interfaces/IProjectList.sol";
 
+error UnauthorizedProjectAdmin();
 error BeneficiaryNotProvided();
 error BeneficiaryAlreadyExists(address beneficiary);
 error ProjectDoesNotExist(uint256 projectId);
@@ -17,8 +18,9 @@ contract ProjectRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable, 
     mapping(uint256 => Project) projects;
     mapping(address => bool) internal registeredBeneficiaries;
 
-    uint256 nextProjectId;
+    uint256 public nextProjectId;
 
+    event ProjectAdminChanged(uint256 indexed projectId, address newAdmin);
     event ProjectUpdated(uint256 indexed projectId, address beneficiary, bytes contenthash);
 
     modifier isValidBeneficiary(address _beneficiary) {
@@ -33,9 +35,18 @@ contract ProjectRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable, 
         _;
     }
 
+    modifier onlyAdmin(uint256 _projectId) {
+        if (projects[_projectId].admin != msg.sender) {
+            revert UnauthorizedProjectAdmin();
+        }
+
+        _;
+    }
+
     constructor(uint256 _version) {
-        version = _version;
         _disableInitializers();
+
+        version = _version;
     }
 
     function initialize() public initializer {
@@ -51,28 +62,40 @@ contract ProjectRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable, 
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
+    function changeProjectAdmin(uint256 _projectId, address _newAdmin) external onlyAdmin(_projectId) {
+        projects[_projectId].admin = _newAdmin;
+
+        emit ProjectAdminChanged(_projectId, _newAdmin);
+    }
+
     function registrerProject(address _beneficiary, bytes calldata _contenthash)
         external
+        isValidBeneficiary(_beneficiary)
         returns (uint256 _projectId)
     {
         _projectId = nextProjectId++;
 
-        _updateProject(_projectId, _beneficiary, _contenthash);
+        _updateProject(_projectId, msg.sender, _beneficiary, _contenthash);
+
+        emit ProjectAdminChanged(_projectId, msg.sender);
     }
 
-    function updateProject(uint256 _projectId, address _beneficiary, bytes calldata _contenthash) external {
-        _updateProject(_projectId, _beneficiary, _contenthash);
-    }
-
-    function _updateProject(uint256 _projectId, address _beneficiary, bytes calldata _contenthash)
-        internal
+    function updateProject(uint256 _projectId, address _beneficiary, bytes calldata _contenthash)
+        external
+        onlyAdmin(_projectId)
         isValidBeneficiary(_beneficiary)
+    {
+        _updateProject(_projectId, msg.sender, _beneficiary, _contenthash);
+    }
+
+    function _updateProject(uint256 _projectId, address _admin, address _beneficiary, bytes calldata _contenthash)
+        internal
     {
         Project memory oldProject = projects[_projectId];
 
         registeredBeneficiaries[oldProject.beneficiary] = false;
 
-        projects[_projectId] = Project({beneficiary: _beneficiary, contenthash: _contenthash});
+        projects[_projectId] = Project({beneficiary: _beneficiary, admin: _admin, contenthash: _contenthash});
         registeredBeneficiaries[_beneficiary] = true;
 
         emit ProjectUpdated(_projectId, _beneficiary, _contenthash);
