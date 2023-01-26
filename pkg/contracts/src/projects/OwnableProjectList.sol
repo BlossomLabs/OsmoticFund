@@ -3,17 +3,21 @@ pragma solidity ^0.8.17;
 
 import {Ownable} from "@oz/access/Ownable.sol";
 
-import {IProjectList, ProjectNotInList, Project} from "../interfaces/IProjectList.sol";
+import {IProjectList, Project, ProjectNotInList} from "../../src/interfaces/IProjectList.sol";
+
 import {ProjectRegistry, ProjectDoesNotExist} from "./ProjectRegistry.sol";
 
-error ProjectNotIncluded(uint256 projectId);
-error ProjectAlreadyIncluded(uint256 projectId);
+error ProjectAlreadyInList(uint256 projectId);
 
-contract OwnableProjectList is Ownable {
+contract OwnableProjectList is Ownable, IProjectList {
+    string public name;
     ProjectRegistry public projectRegistry;
-    mapping(uint256 => bool) public projectsIncluded;
 
-    modifier projectExists(uint256 _projectId) {
+    mapping(uint256 => bool) public isProjectIncluded;
+
+    event ListUpdated(uint256 indexed projectId, bool included);
+
+    modifier isValidProject(uint256 _projectId) {
         if (!projectRegistry.projectExists(_projectId)) {
             revert ProjectDoesNotExist(_projectId);
         }
@@ -21,24 +25,29 @@ contract OwnableProjectList is Ownable {
         _;
     }
 
-    constructor(ProjectRegistry _projectRegistry) Ownable() {
-        projectRegistry = _projectRegistry;
+    constructor(address _projectRegistry, string memory _name) Ownable() {
+        projectRegistry = ProjectRegistry(_projectRegistry);
+        name = _name;
     }
 
-    function addProject(uint256 _projectId) public onlyOwner projectExists(_projectId) {
-        if (projectsIncluded[_projectId]) {
-            revert ProjectAlreadyIncluded(_projectId);
+    function addProject(uint256 _projectId) public onlyOwner isValidProject(_projectId) {
+        if (isProjectIncluded[_projectId]) {
+            revert ProjectAlreadyInList(_projectId);
         }
 
-        projectsIncluded[_projectId] = true;
+        isProjectIncluded[_projectId] = true;
+
+        emit ListUpdated(_projectId, true);
     }
 
-    function removeProject(uint256 _projectId) public onlyOwner projectExists(_projectId) {
-        if (!projectsIncluded[_projectId]) {
-            revert ProjectNotIncluded(_projectId);
+    function removeProject(uint256 _projectId) public onlyOwner isValidProject(_projectId) {
+        if (!isProjectIncluded[_projectId]) {
+            revert ProjectNotInList(_projectId);
         }
 
-        projectsIncluded[_projectId] = false;
+        isProjectIncluded[_projectId] = false;
+
+        emit ListUpdated(_projectId, false);
     }
 
     function addProjects(uint256[] calldata _projectIds) external onlyOwner {
@@ -53,5 +62,16 @@ contract OwnableProjectList is Ownable {
             uint256 projectId = _projectIds[i];
             removeProject(projectId);
         }
+    }
+
+    function getProject(uint256 _projectId) public view returns (Project memory) {
+        if (!isProjectIncluded[_projectId]) {
+            revert ProjectNotInList(_projectId);
+        }
+        return projectRegistry.getProject(_projectId);
+    }
+
+    function projectExists(uint256 _projectId) public view returns (bool) {
+        return isProjectIncluded[_projectId];
     }
 }
