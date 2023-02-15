@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 import {OwnableUpgradeable} from "@oz-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
 
+// TODO: update to supertoken for clarity
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 
 import {ICFAv1Forwarder} from "./interfaces/ICFAv1Forwarder.sol";
@@ -11,6 +12,7 @@ import {IProjectList, Project, ProjectNotInList} from "./interfaces/IProjectList
 import {OsmoticFormula, OsmoticParams} from "./OsmoticFormula.sol";
 import {OsmoticController} from "./OsmoticController.sol";
 
+error InvalidProjectList();
 error SupportUnderflow();
 error ProjectAlreadyActive(uint256 projectId);
 error ProjectNeedsMoreStake(uint256 projectId, uint256 requiredStake, uint256 currentStake);
@@ -23,7 +25,6 @@ struct ParticipantSupportUpdate {
 contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     ICFAv1Forwarder public immutable cfaForwarder;
     OsmoticController public immutable controller;
-    IProjectList public immutable projectList;
 
     uint8 constant MAX_ACTIVE_PROJECTS = 25;
 
@@ -36,7 +37,6 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         uint256 flowLastRate;
         uint256 flowLastTime;
         bool active;
-        bool included;
         /**
          * We need to keep track of the beneficiary address in the pool because
          * can be updated in the ProjectRegistry
@@ -45,6 +45,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         mapping(address => uint256) participantSupports;
     }
 
+    IProjectList public projectList;
     IERC20 public fundingToken;
     IERC20 public governanceToken;
     OsmoticParams public osmoticParams;
@@ -66,23 +67,30 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     event ProjectSupportUpdated(uint256 indexed projectId, address participant, int256 delta);
     event FlowSynced(uint256 indexed projectId, address beneficiary, uint256 flowRate);
 
-    constructor(ICFAv1Forwarder _cfaForwarder, OsmoticController _controller, IProjectList _projectList) {
+    constructor(ICFAv1Forwarder _cfaForwarder, OsmoticController _controller) {
         _disableInitializers();
 
         cfaForwarder = _cfaForwarder;
         controller = _controller;
-        projectList = _projectList;
     }
 
-    function initialize(IERC20 _fundingToken, IERC20 _governanceToken, OsmoticParams calldata _params)
-        public
-        initializer
-    {
+    function initialize(
+        IERC20 _fundingToken,
+        IERC20 _governanceToken,
+        OsmoticParams calldata _params,
+        address _projectList
+    ) public initializer {
         __Ownable_init();
         __OsmoticFormula_init(_params);
 
         fundingToken = _fundingToken;
         governanceToken = _governanceToken;
+
+        if (!controller.isList(_projectList)) {
+            revert InvalidProjectList();
+        }
+
+        projectList = IProjectList(_projectList);
     }
 
     /* *************************************************************************************************************************************/
@@ -90,7 +98,9 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     /* *************************************************************************************************************************************/
 
     function activateProject(uint256 _projectId) public {
-        require(poolProjects[_projectId].included);
+        if (!projectList.projectExists(_projectId)) {
+            revert ProjectNotInList(_projectId);
+        }
 
         uint256 minSupport = poolProjects[_projectId].projectSupport;
         uint256 minIndex = _projectId;

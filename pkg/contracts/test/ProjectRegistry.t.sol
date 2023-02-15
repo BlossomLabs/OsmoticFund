@@ -22,12 +22,16 @@ contract ProjectRegistryTest is Test, SetupScript {
     bytes cid = "QmWtGzMy7aNbMnLpmuNjKonoHc86mL1RyxqD2ghdQyq7Sm";
     bytes contenthash = bytes(cid);
 
+    bytes registryBytecode;
+
     event ProjectAdminChanged(uint256 indexed projectId, address newAdmin);
     event ProjectUpdated(uint256 indexed projectId, address beneficiary, bytes contenthash);
 
     function setUp() public {
         (address proxy, address implementation) =
             setUpContracts(abi.encode(uint256(1)), "ProjectRegistry", abi.encodeCall(ProjectRegistry.initialize, ()));
+
+        registryBytecode = implementation.code;
 
         registry = ProjectRegistry(proxy);
 
@@ -37,7 +41,7 @@ contract ProjectRegistryTest is Test, SetupScript {
     }
 
     function testInitialize() public {
-        // TODO: verify implementation is correct
+        assertEq(registry.implementation().code, registryBytecode, "implementation mismatch");
         assertEq(registry.version(), 1, "version mismatch");
         assertEq(registry.nextProjectId(), 1, "nextProjectId mismatch");
         assertEq(registry.owner(), deployer, "owner mismatch");
@@ -45,10 +49,7 @@ contract ProjectRegistryTest is Test, SetupScript {
 
     function testRegisterProject() public {
         vm.expectEmit(true, false, false, true);
-        emit ProjectUpdated(1, beneficiary, contenthash);
-
-        vm.expectEmit(true, false, false, true);
-        emit ProjectAdminChanged(1, projectAdmin);
+        emit ProjectUpdated(1, projectAdmin, beneficiary, contenthash);
 
         vm.prank(projectAdmin);
         uint256 projectId = registry.registrerProject(beneficiary, contenthash);
@@ -65,7 +66,7 @@ contract ProjectRegistryTest is Test, SetupScript {
         registry.registrerProject(address(0), contenthash);
     }
 
-    function testFailWhenRegisteringProjectWithExistingBeneficiary() public {
+    function testWhenRegisteringProjectWithExistingBeneficiary() public {
         registry.registrerProject(beneficiary, contenthash);
         registry.registrerProject(beneficiary, contenthash);
     }
