@@ -12,8 +12,6 @@ import {OsmoticFormula, OsmoticParams} from "./OsmoticFormula.sol";
 import {OsmoticController} from "./OsmoticController.sol";
 
 error SupportUnderflow();
-error ProjectNotFound(uint256 projectId);
-error ProjectNotIncluded(uint256 projectId);
 error ProjectAlreadyActive(uint256 projectId);
 error ProjectNeedsMoreStake(uint256 projectId, uint256 requiredStake, uint256 currentStake);
 
@@ -63,8 +61,6 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     /* ** Events                                                                                                                         ***/
     /* *************************************************************************************************************************************/
 
-    event ProjectIncluded(uint256 indexed projectId);
-    event ProjectRemoved(uint256 indexed projectId);
     event ProjectActivated(uint256 indexed projectId);
     event ProjectDeactivated(uint256 indexed projectId);
     event ProjectSupportUpdated(uint256 indexed projectId, address participant, int256 delta);
@@ -155,9 +151,9 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
 
         uint256 newTotalParticipantSupport = _applyDelta(totalParticipantSupport[msg.sender], deltaSupportSum);
 
-        totalParticipantSupport[msg.sender] = newTotalParticipantSupport;
-
         require(newTotalParticipantSupport <= availableStake, "NOT_ENOUGH_STAKE");
+
+        totalParticipantSupport[msg.sender] = newTotalParticipantSupport;
 
         totalSupport = _applyDelta(totalSupport, deltaSupportSum);
 
