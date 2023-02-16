@@ -82,23 +82,6 @@ contract ProjectRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable, 
         _updateProject(_projectId, msg.sender, _beneficiary, _contenthash);
     }
 
-    function updateProjectBeneficiary(uint256 _projectId, address _beneficiary)
-        external
-        onlyAdmin(_projectId)
-        isValidBeneficiary(_beneficiary)
-    {
-        _updateProject(_projectId, msg.sender, _beneficiary, projects[_projectId].contenthash);
-    }
-
-    function updateProjectContent(uint256 _projectId, bytes calldata _contenthash) external onlyAdmin(_projectId) {
-        _updateProject(_projectId, msg.sender, projects[_projectId].beneficiary, _contenthash);
-    }
-
-    function updateProjectAdmin(uint256 _projectId, address _newAdmin) external onlyAdmin(_projectId) {
-        require(_newAdmin != address(0), "ProjectRegistry: new admin cannot be zero address");
-        _updateProject(_projectId, _newAdmin, projects[_projectId].beneficiary, projects[_projectId].contenthash);
-    }
-
     function updateProject(uint256 _projectId, address _newAdmin, address _beneficiary, bytes calldata _contenthash)
         external
         onlyAdmin(_projectId)

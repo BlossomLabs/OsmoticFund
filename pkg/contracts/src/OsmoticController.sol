@@ -124,7 +124,7 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
     /* *************************************************************************************************************************************/
 
     function createProjectList(string calldata name) external whenNotPaused returns (address list_) {
-        list_ = address(new OwnableProjectList(projectRegistry, name));
+        list_ = address(new OwnableProjectList(projectRegistry, msg.sender, name));
         isList[list_] = true;
 
         emit ProjectListCreated(list_);

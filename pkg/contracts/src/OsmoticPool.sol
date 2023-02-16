@@ -4,8 +4,8 @@ pragma solidity ^0.8.17;
 import {OwnableUpgradeable} from "@oz-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
 
-// TODO: update to supertoken for clarity
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
+import {ISuperToken} from "./interfaces/ISuperToken.sol";
 
 import {ICFAv1Forwarder} from "./interfaces/ICFAv1Forwarder.sol";
 import {IProjectList, Project, ProjectNotInList} from "./interfaces/IProjectList.sol";
@@ -46,7 +46,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     }
 
     IProjectList public projectList;
-    IERC20 public fundingToken;
+    ISuperToken public fundingToken;
     IERC20 public governanceToken;
     OsmoticParams public osmoticParams;
     uint256 public totalSupport;
@@ -75,22 +75,22 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     }
 
     function initialize(
-        IERC20 _fundingToken,
+        ISuperToken _fundingToken,
         IERC20 _governanceToken,
-        OsmoticParams calldata _params,
-        address _projectList
+        address _projectList,
+        OsmoticParams calldata _params
     ) public initializer {
         __Ownable_init();
         __OsmoticFormula_init(_params);
 
-        fundingToken = _fundingToken;
-        governanceToken = _governanceToken;
-
-        if (!controller.isList(_projectList)) {
+        if (controller.isList(_projectList)) {
+            projectList = IProjectList(_projectList);
+        } else {
             revert InvalidProjectList();
         }
 
-        projectList = IProjectList(_projectList);
+        fundingToken = _fundingToken;
+        governanceToken = _governanceToken;
     }
 
     /* *************************************************************************************************************************************/
