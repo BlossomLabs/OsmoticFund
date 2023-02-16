@@ -24,7 +24,6 @@ struct ParticipantSupportUpdate {
 
 contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     ICFAv1Forwarder public immutable cfaForwarder;
-    OsmoticController public immutable controller;
 
     uint8 constant MAX_ACTIVE_PROJECTS = 25;
 
@@ -45,6 +44,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         mapping(address => uint256) participantSupports;
     }
 
+    OsmoticController public controller;
     IProjectList public projectList;
     ISuperToken public fundingToken;
     IERC20 public governanceToken;
@@ -67,24 +67,26 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     event ProjectSupportUpdated(uint256 indexed projectId, address participant, int256 delta);
     event FlowSynced(uint256 indexed projectId, address beneficiary, uint256 flowRate);
 
-    constructor(ICFAv1Forwarder _cfaForwarder, OsmoticController _controller) {
+    constructor(ICFAv1Forwarder _cfaForwarder) {
         _disableInitializers();
 
         cfaForwarder = _cfaForwarder;
-        controller = _controller;
     }
 
     function initialize(
+        OsmoticController _controller,
         ISuperToken _fundingToken,
         IERC20 _governanceToken,
-        address _projectList,
+        IProjectList _projectList,
         OsmoticParams calldata _params
     ) public initializer {
         __Ownable_init();
         __OsmoticFormula_init(_params);
 
-        if (controller.isList(_projectList)) {
-            projectList = IProjectList(_projectList);
+        controller = _controller;
+
+        if (controller.isList(address(_projectList))) {
+            projectList = _projectList;
         } else {
             revert InvalidProjectList();
         }

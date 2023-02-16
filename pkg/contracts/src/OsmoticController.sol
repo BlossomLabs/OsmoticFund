@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
+import {console} from "forge-std/console.sol";
+
 import {OwnableUpgradeable} from "@oz-upgradeable/access/OwnableUpgradeable.sol";
 import {PausableUpgradeable} from "@oz-upgradeable/security/PausableUpgradeable.sol";
 import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
@@ -67,6 +69,9 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
 
         beacon = new UpgradeableBeacon(_osmoticPoolImplementation);
 
+        // We transfer the ownership of the beacon to the deployer
+        beacon.transferOwnership(msg.sender);
+
         version = _version;
         projectRegistry = _projectRegistry;
         stakingFactory = _stakingFactory;
@@ -76,6 +81,9 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
         __Pausable_init();
         __Ownable_init();
         __UUPSUpgradeable_init();
+
+        // We set the registry as the default list
+        isList[projectRegistry] = true;
     }
 
     /* *************************************************************************************************************************************/
@@ -104,9 +112,11 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    function updateOsmoticPool(address _newImplementation) external onlyOwner {
-        beacon.upgradeTo(_newImplementation);
-    }
+    // TODO: evaluate if is possible to have this logic here beacuse of ownership
+    // otherwise the deployer does the beacon upgrades manually
+    // function updateOsmoticPool(address _newImplementation) external onlyOwner {
+    //     beacon.upgradeTo(_newImplementation);
+    // }
 
     /* *************************************************************************************************************************************/
     /* ** Pool Creation Function                                                                                                       ***/
