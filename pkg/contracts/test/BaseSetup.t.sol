@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
 
-import {BaseSetup} from "./BaseSetup.sol";
+import {BaseSetup} from "../script/BaseSetup.sol";
 
 contract SetupInitialize is Test, BaseSetup {
     function setUp() public override {

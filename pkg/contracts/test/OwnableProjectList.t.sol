@@ -12,7 +12,7 @@ import {
 
 import {Project} from "../src/interfaces/IProjectList.sol";
 
-import {BaseSetup} from "./BaseSetup.sol";
+import {BaseSetup} from "../script/BaseSetup.sol";
 
 contract OwnableProjectListTest is Test, BaseSetup {
     OwnableProjectList ownedList;

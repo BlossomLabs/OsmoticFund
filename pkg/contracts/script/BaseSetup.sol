@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 
-import {SetupScript} from "../script/SetupScript.sol";
+import {SetupScript} from "./SetupScript.sol";
 
 import {OsmoticController} from "../src/OsmoticController.sol";
 import {ProjectRegistry} from "../src/projects/ProjectRegistry.sol";
@@ -15,7 +15,7 @@ import {IStakingFactory} from "../src/interfaces/IStakingFactory.sol";
 contract BaseSetup is SetupScript {
     // fork env
     uint256 goerliFork;
-    string GOERLI_RPC_URL = vm.envString("GOERLI_RPC_URL");
+    string GOERLI_RPC_URL = vm.envOr("GOERLI_RPC_URL", string("https://rpc.ankr.com/eth_goerli"));
     // we use goerli address to test dependencies in the fork chain
     address cfaV1ForwarderAddress = 0xcfA132E353cB4E398080B9700609bb008eceB125;
     address stakingFactoryAddress = 0x0C685827eFe3551291Fb7De853BfDb02C3eDF3a3;
@@ -44,8 +44,8 @@ contract BaseSetup is SetupScript {
     address controllerImplementation;
 
     function setUp() public virtual {
-        // create forks
-        goerliFork = vm.createFork(GOERLI_RPC_URL);
+        // if in fork mode create and select fork
+        vm.createSelectFork(GOERLI_RPC_URL);
 
         // labels
         vm.label(deployer, "deployer");

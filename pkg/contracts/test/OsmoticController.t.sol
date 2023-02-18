@@ -10,7 +10,7 @@ import {InvalidProjectList, OsmoticPool, OsmoticParams} from "../src/OsmoticPool
 import {IProjectList} from "../src/interfaces/IProjectList.sol";
 import {IStaking} from "../src/interfaces/IStaking.sol";
 
-import {BaseSetup} from "./BaseSetup.sol";
+import {BaseSetup} from "../script/BaseSetup.sol";
 
 contract OsmoticControllerTest is Test, BaseSetup {
     OsmoticPool pool;
@@ -81,9 +81,7 @@ contract OsmoticControllerTest is Test, BaseSetup {
         assertEq(controller.isPool(newPool), true, "new pool is not registered");
     }
 
-    function testLockBalance() public {
-        vm.selectFork(goerliFork);
-
+    function testForkLockBalance() public {
         // get staking
         IStaking staking = stakingFactory.getOrCreateInstance(address(governanceToken));
 
@@ -95,11 +93,10 @@ contract OsmoticControllerTest is Test, BaseSetup {
         staking.stake(amount, "");
         staking.allowManager(address(controller), amount, "");
 
-        // TODO: (GABI)
-        // controller.lockBalance(address(governanceToken), amount);
+        controller.lockBalance(address(governanceToken), amount);
 
-        // assertEq(
-        //     controller.getParticipantStaking(tokensOwner, address(governanceToken)), amount, "locked balance mismatch"
-        // );
+        assertEq(
+            controller.getParticipantStaking(tokensOwner, address(governanceToken)), amount, "locked balance mismatch"
+        );
     }
 }

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {console} from "forge-std/console.sol";
-
 import {OwnableUpgradeable} from "@oz-upgradeable/access/OwnableUpgradeable.sol";
 import {PausableUpgradeable} from "@oz-upgradeable/security/PausableUpgradeable.sol";
 import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
@@ -145,13 +143,13 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
     /* *************************************************************************************************************************************/
 
     function lockBalance(address _token, uint256 _amount) public whenNotPaused {
-        IStaking staking = IStaking(stakingFactory.getOrCreateInstance(_token));
+        IStaking staking = stakingFactory.getOrCreateInstance(_token);
 
         _lockBalance(staking, msg.sender, _amount);
     }
 
     function unlockBalance(address _token, uint256 _amount) public whenNotPaused {
-        IStaking staking = IStaking(stakingFactory.getInstance(_token));
+        IStaking staking = stakingFactory.getInstance(_token);
 
         _unlockBalance(staking, msg.sender, _amount);
     }
@@ -221,7 +219,7 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
     }
 
     function getParticipantStaking(address _participant, address _token) public view returns (uint256) {
-        return IStaking(stakingFactory.getInstance(_token)).lockedBalanceOf(_participant);
+        return stakingFactory.getInstance(_token).lockedBalanceOf(_participant);
     }
 
     /* *************************************************************************************************************************************/
