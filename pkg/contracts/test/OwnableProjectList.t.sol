@@ -19,8 +19,7 @@ contract OwnableProjectListTest is Test, BaseSetup {
 
     address beneficiary1 = address(1);
     address beneficiary2 = address(2);
-    address beneficiary3 = address(3);
-    address listOwner = address(4);
+    address listOwner = address(3);
 
     uint256 projectId1;
     uint256 projectId2;

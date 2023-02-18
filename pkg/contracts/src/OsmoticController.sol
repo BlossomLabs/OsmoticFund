@@ -61,13 +61,13 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
 
     constructor(
         uint256 _version,
-        address _osmoticPoolImplementation,
+        address _initOsmoticPoolImplementation,
         address _projectRegistry,
         IStakingFactory _stakingFactory
     ) {
         _disableInitializers();
 
-        beacon = new UpgradeableBeacon(_osmoticPoolImplementation);
+        beacon = new UpgradeableBeacon(_initOsmoticPoolImplementation);
 
         // We transfer the ownership of the beacon to the deployer
         beacon.transferOwnership(msg.sender);

@@ -1,21 +1,35 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.17;
 
+import {IERC20} from "@oz/token/ERC20/IERC20.sol";
+
 import {SetupScript} from "../script/SetupScript.sol";
 
 import {OsmoticController} from "../src/OsmoticController.sol";
 import {ProjectRegistry} from "../src/projects/ProjectRegistry.sol";
 
+import {ISuperToken} from "../src/interfaces/ISuperToken.sol";
 import {ICFAv1Forwarder} from "../src/interfaces/ICFAv1Forwarder.sol";
 import {IStakingFactory} from "../src/interfaces/IStakingFactory.sol";
 
 contract BaseSetup is SetupScript {
     // fork env
-    // uint256 goerliFork;
-    // string GOERLI_RPC_URL = vm.envString("GOERLI_RPC_URL");
+    uint256 goerliFork;
+    string GOERLI_RPC_URL = vm.envString("GOERLI_RPC_URL");
     // we use goerli address to test dependencies in the fork chain
     address cfaV1ForwarderAddress = 0xcfA132E353cB4E398080B9700609bb008eceB125;
     address stakingFactoryAddress = 0x0C685827eFe3551291Fb7De853BfDb02C3eDF3a3;
+    address fundingTokenAddress = 0x668168D45eEf326E0E746c86e11b212492Dd8309; // DAIx
+    address governanceTokenAddress = 0xa625BEDDA5c4d25A67aEccD9dc8c4b70D9f77E1f; // HNYT
+    address tokensOwner = 0x5CfAdf589a694723F9Ed167D647582B3Db3b33b3;
+
+    // tokens
+    ISuperToken fundingToken;
+    IERC20 governanceToken;
+
+    // dependencies
+    IStakingFactory stakingFactory;
+    ICFAv1Forwarder cfaForwarder;
 
     // osmotic contracts
     OsmoticController controller;
@@ -31,15 +45,24 @@ contract BaseSetup is SetupScript {
 
     function setUp() public virtual {
         // create forks
-        // goerliFork = vm.createFork(GOERLI_RPC_URL);
+        goerliFork = vm.createFork(GOERLI_RPC_URL);
 
         // labels
         vm.label(deployer, "deployer");
         vm.label(notAuthorized, "notAuthorized");
+        vm.label(tokensOwner, "tokensOwner");
+        vm.label(cfaV1ForwarderAddress, "cfaForwarder");
+        vm.label(stakingFactoryAddress, "stakingFactory");
+        vm.label(fundingTokenAddress, "fundingToken");
+        vm.label(governanceTokenAddress, "governanceToken");
+
+        // deploy tokens
+        fundingToken = ISuperToken(fundingTokenAddress);
+        governanceToken = IERC20(governanceTokenAddress);
 
         // init dependencies
-        ICFAv1Forwarder cfaForwarder = ICFAv1Forwarder(cfaV1ForwarderAddress);
-        IStakingFactory stakingFactory = IStakingFactory(stakingFactoryAddress);
+        cfaForwarder = ICFAv1Forwarder(cfaV1ForwarderAddress);
+        stakingFactory = IStakingFactory(stakingFactoryAddress);
 
         // deploy registry
         (address registryProxy, address registryImplementationAddress) =
