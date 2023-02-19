@@ -2,6 +2,7 @@
 pragma solidity ^0.8.17;
 
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
+import {UpgradeableBeacon} from "@oz/proxy/beacon/UpgradeableBeacon.sol";
 
 import {SetupScript} from "./SetupScript.sol";
 
@@ -11,6 +12,8 @@ import {ProjectRegistry} from "../src/projects/ProjectRegistry.sol";
 import {ISuperToken} from "../src/interfaces/ISuperToken.sol";
 import {ICFAv1Forwarder} from "../src/interfaces/ICFAv1Forwarder.sol";
 import {IStakingFactory} from "../src/interfaces/IStakingFactory.sol";
+
+contract Dummy {}
 
 contract BaseSetup is SetupScript {
     // fork env
@@ -71,13 +74,19 @@ contract BaseSetup is SetupScript {
         registry = ProjectRegistry(registryProxy);
 
         // deploy controller
-        osmoticPoolImplementation = setUpContract("OsmoticPool", abi.encode(address(cfaForwarder)));
+        // We create a dummy contract to be used as the init beacon implementation
+        Dummy dummy = new Dummy();
         (address proxy, address controllerImplementationAddress) = setUpContracts(
-            abi.encode(uint256(1), osmoticPoolImplementation, address(registry), address(stakingFactory)),
+            abi.encode(uint256(1), address(dummy), address(registry), address(stakingFactory)),
             "OsmoticController",
             abi.encodeCall(OsmoticController.initialize, ())
         );
         controllerImplementation = controllerImplementationAddress;
         controller = OsmoticController(proxy);
+
+        // now that we have the controller proxy we upgrade the beacon implementation to OsmoticPool
+        osmoticPoolImplementation = setUpContract("OsmoticPool", abi.encode(address(cfaForwarder), address(controller)));
+        UpgradeableBeacon beacon = UpgradeableBeacon(controller.beacon());
+        beacon.upgradeTo(osmoticPoolImplementation);
     }
 }

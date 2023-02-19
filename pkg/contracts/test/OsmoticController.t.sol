@@ -38,8 +38,8 @@ contract OsmoticControllerTest is Test, BaseSetup {
     }
 
     function testUpdateOsmoticPoolImplementation() public {
-        address newImplementation = setUpContract("OsmoticPool", abi.encode(address(12)));
-        UpgradeableBeacon beacon = UpgradeableBeacon(controller.osmoticPoolImplementation());
+        address newImplementation = setUpContract("OsmoticPool", abi.encode(address(12), address(13)));
+        UpgradeableBeacon beacon = UpgradeableBeacon(controller.beacon());
         beacon.upgradeTo(newImplementation);
 
         assertEq(controller.osmoticPoolImplementation(), newImplementation, "poolImplementation mismatch");
@@ -47,7 +47,7 @@ contract OsmoticControllerTest is Test, BaseSetup {
 
     function testCreatePool() public {
         bytes memory initCall =
-            abi.encodeCall(OsmoticPool.initialize, (controller, fundingToken, governanceToken, registry, params));
+            abi.encodeCall(OsmoticPool.initialize, (fundingToken, governanceToken, registry, params));
         address newPool = controller.createOsmoticPool(initCall);
 
         assertEq(controller.isPool(newPool), true, "new pool is not registered");
@@ -57,7 +57,7 @@ contract OsmoticControllerTest is Test, BaseSetup {
         IProjectList projectList = IProjectList(address(20));
 
         bytes memory initCall =
-            abi.encodeCall(OsmoticPool.initialize, (controller, fundingToken, governanceToken, projectList, params));
+            abi.encodeCall(OsmoticPool.initialize, (fundingToken, governanceToken, projectList, params));
 
         vm.expectRevert(abi.encodeWithSelector(InvalidProjectList.selector));
 
@@ -73,30 +73,29 @@ contract OsmoticControllerTest is Test, BaseSetup {
     function testCreatePoolWithOwnedList() public {
         IProjectList newList = IProjectList(controller.createProjectList("New list"));
 
-        bytes memory initCall =
-            abi.encodeCall(OsmoticPool.initialize, (controller, fundingToken, governanceToken, newList, params));
+        bytes memory initCall = abi.encodeCall(OsmoticPool.initialize, (fundingToken, governanceToken, newList, params));
 
         address newPool = controller.createOsmoticPool(initCall);
 
         assertEq(controller.isPool(newPool), true, "new pool is not registered");
     }
 
-    function testForkLockBalance() public {
+    function testFuzzLockBalance(uint256 _amount) public {
+        vm.assume(_amount > 0);
+        vm.assume(_amount <= governanceToken.balanceOf(tokensOwner));
+
         // get staking
         IStaking staking = stakingFactory.getOrCreateInstance(address(governanceToken));
 
-        uint256 amount = 1000 ether;
-
         vm.startPrank(tokensOwner);
+        governanceToken.approve(address(staking), _amount);
+        staking.stake(_amount, "");
+        staking.allowManager(address(controller), _amount, "");
 
-        governanceToken.approve(address(staking), amount);
-        staking.stake(amount, "");
-        staking.allowManager(address(controller), amount, "");
-
-        controller.lockBalance(address(governanceToken), amount);
+        controller.lockBalance(address(governanceToken), _amount);
 
         assertEq(
-            controller.getParticipantStaking(tokensOwner, address(governanceToken)), amount, "locked balance mismatch"
+            controller.getParticipantStaking(tokensOwner, address(governanceToken)), _amount, "locked balance mismatch"
         );
     }
 }

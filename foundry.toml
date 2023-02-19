@@ -2,7 +2,7 @@
 solc = "0.8.17"
 optimizer = true # Enable or disable the solc optimizer
 optimizer_runs = 999999 # The number of optimizer runs
-verbosity = 3 # The verbosity of tests
+verbosity = 1 # The verbosity of tests
 libs = ['lib'] # The directories to search for libraries
 src = 'pkg/contracts/src'
 test = 'pkg/contracts/test'

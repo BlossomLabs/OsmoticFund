@@ -24,12 +24,9 @@ error NotOsmoticPool();
 contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgradeable, UUPSUpgradeable, ILockManager {
     using SafeERC20 for IERC20;
 
-    UpgradeableBeacon internal immutable beacon;
-
     uint256 public immutable version;
-
+    UpgradeableBeacon public immutable beacon;
     address public immutable projectRegistry;
-
     IStakingFactory public immutable stakingFactory; // For finding each collateral token's staking pool and locking/unlocking tokens
 
     mapping(address => bool) public isPool;
@@ -59,14 +56,13 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
 
     constructor(
         uint256 _version,
-        address _initOsmoticPoolImplementation,
+        address _initImplementation,
         address _projectRegistry,
         IStakingFactory _stakingFactory
     ) {
         _disableInitializers();
 
-        beacon = new UpgradeableBeacon(_initOsmoticPoolImplementation);
-
+        beacon = new UpgradeableBeacon(_initImplementation);
         // We transfer the ownership of the beacon to the deployer
         beacon.transferOwnership(msg.sender);
 

@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 
 import {BaseSetup} from "../script/BaseSetup.sol";
 
-contract SetupInitialize is Test, BaseSetup {
+contract BaseSetupTest is Test, BaseSetup {
     function setUp() public override {
         super.setUp();
     }
