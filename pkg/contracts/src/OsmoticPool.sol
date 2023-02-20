@@ -143,7 +143,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
      */
     function updateProjectSupports(ParticipantSupportUpdate[] calldata _participantUpdates) external {
         (, uint256 stakingAllowance) = controller.getStakingLock(address(governanceToken), msg.sender);
-        require(stakingAllowance > 0, "NO_STAKE_AVAILABLE");
+        require(stakingAllowance > 0, "NO_STAKE_ALLOWANCE_AVAILABLE");
 
         int256 deltaSupportSum = 0;
         // Check that the sum of supports is not greater than the available stake
@@ -156,7 +156,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         }
 
         uint256 newTotalParticipantSupport = _applyDelta(totalParticipantSupport[msg.sender], deltaSupportSum);
-        require(newTotalParticipantSupport <= stakingAllowance, "NOT_ENOUGH_STAKE");
+        require(newTotalParticipantSupport <= stakingAllowance, "NOT_ENOUGH_STAKE_ALLOWANCE");
         totalParticipantSupport[msg.sender] = newTotalParticipantSupport;
 
         totalSupport = _applyDelta(totalSupport, deltaSupportSum);
@@ -176,9 +176,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         }
 
         // Notify the controller of the new participant support
-        controller.updateUserLockedBalance(
-            address(governanceToken), msg.sender, newTotalParticipantSupport, address(this)
-        );
+        controller.updateLockedBalance(address(governanceToken), msg.sender, newTotalParticipantSupport, address(this));
     }
 
     /* *************************************************************************************************************************************/

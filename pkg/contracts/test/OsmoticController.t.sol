@@ -88,4 +88,31 @@ contract OsmoticControllerTest is Test, BaseSetup {
 
         assertEq(controller.isPool(newPool), true, "new pool is not registered");
     }
+
+    function stakingPreTransactions(uint256 _amount) public {
+        vm.assume(_amount > 0);
+        vm.assume(_amount <= governanceToken.balanceOf(tokensOwner));
+
+        // get staking
+        IStaking staking = stakingFactory.getOrCreateInstance(address(governanceToken));
+
+        governanceToken.approve(address(staking), _amount);
+        staking.stake(_amount, "");
+        staking.allowManager(address(controller), _amount, "");
+    }
+
+    function testFuzzUpdateLockedBalance(uint256 _amount) public {
+        vm.startPrank(tokensOwner);
+        stakingPreTransactions(_amount);
+        vm.stopPrank();
+
+        vm.prank(address(pool));
+        controller.updateLockedBalance(address(governanceToken), tokensOwner, _amount, address(pool));
+
+        assertEq(controller.getLockedBalance(address(governanceToken), tokensOwner), _amount, "locked balance mismatch");
+    }
+
+    function testFuzzUnlockBalance(uint256 _amount) public {}
+
+    function testFuzzCanUnlock(uint256 _amount) public {}
 }

@@ -144,13 +144,14 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
         _unlockBalance(staking, _user, _amount);
     }
 
-    function updateUserLockedBalance(address _token, address _user, uint256 _amount, address _pool)
+    function updateLockedBalance(address _token, address _user, uint256 _amount, address _pool)
         external
         whenNotPaused
         onlyPool(_pool)
     {
         uint256 currentLockedBalance = userLockedBalance[_user][_token];
 
+        // we only need to store the new balance if it is greater than the current one
         if (_amount > currentLockedBalance) {
             IStaking staking = stakingFactory.getOrCreateInstance(_token);
             _lockBalance(staking, _user, _amount - currentLockedBalance);
@@ -171,6 +172,7 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
      * @return Whether the request to unlock tokens of a given owner should be allowed
      */
     function canUnlock(address _user, uint256 _amount) external view returns (bool) {
+        // we assume that msg.sender is the staking contract
         IStaking staking = IStaking(msg.sender);
 
         (uint256 currentLocked,) = staking.getLock(_user, address(this));
@@ -191,6 +193,10 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
         IStaking staking = stakingFactory.getInstance(_token);
 
         (locked, allowance) = staking.getLock(_user, address(this));
+    }
+
+    function getLockedBalance(address _token, address _user) external view returns (uint256) {
+        return userLockedBalance[_user][_token];
     }
 
     /* *************************************************************************************************************************************/
