@@ -142,6 +142,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
      * @dev Support with an amount of tokens on a proposal
      */
     function updateProjectSupports(ParticipantSupportUpdate[] calldata _participantUpdates) external {
+        // Fetch the lock allowance that the Controller was given for the governance token on the Staking
         (, uint256 stakingAllowance) = controller.getStakingLock(address(governanceToken), msg.sender);
         require(stakingAllowance > 0, "NO_STAKE_ALLOWANCE_AVAILABLE");
 

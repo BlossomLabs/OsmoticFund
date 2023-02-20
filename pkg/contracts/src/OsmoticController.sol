@@ -151,7 +151,8 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
     {
         uint256 currentLockedBalance = userLockedBalance[_user][_token];
 
-        // we only need to store the new balance if it is greater than the current one
+        // We only store the balance if it is the maximum amount of locked tokens
+        // across all the pools that has _token as governance token
         if (_amount > currentLockedBalance) {
             IStaking staking = stakingFactory.getOrCreateInstance(_token);
             _lockBalance(staking, _user, _amount - currentLockedBalance);
