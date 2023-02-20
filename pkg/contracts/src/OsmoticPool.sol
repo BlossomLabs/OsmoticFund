@@ -142,12 +142,8 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
      * @dev Support with an amount of tokens on a proposal
      */
     function updateProjectSupports(ParticipantSupportUpdate[] calldata _participantUpdates) external {
-        uint256 availableStake = controller.getParticipantStaking(msg.sender, address(governanceToken));
-
-        require(availableStake > 0, "NO_STAKE_AVAILABLE");
-
-        // We store the old support to check if we need to notify the controller
-        uint256 oldTotalParticipantSupport = totalParticipantSupport[msg.sender];
+        (, uint256 stakingAllowance) = controller.getStakingLock(address(governanceToken), msg.sender);
+        require(stakingAllowance > 0, "NO_STAKE_AVAILABLE");
 
         int256 deltaSupportSum = 0;
         // Check that the sum of supports is not greater than the available stake
@@ -160,9 +156,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         }
 
         uint256 newTotalParticipantSupport = _applyDelta(totalParticipantSupport[msg.sender], deltaSupportSum);
-
-        require(newTotalParticipantSupport <= availableStake, "NOT_ENOUGH_STAKE");
-
+        require(newTotalParticipantSupport <= stakingAllowance, "NOT_ENOUGH_STAKE");
         totalParticipantSupport[msg.sender] = newTotalParticipantSupport;
 
         totalSupport = _applyDelta(totalSupport, deltaSupportSum);
@@ -181,12 +175,10 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
             emit ProjectSupportUpdated(projectId, msg.sender, delta);
         }
 
-        // Notify the controller if the user is now supporting or unsupporting projects
-        if (oldTotalParticipantSupport > 0 && newTotalParticipantSupport == 0) {
-            controller.decreaseParticipantSupportedPools(msg.sender, address(this));
-        } else if (oldTotalParticipantSupport == 0 && newTotalParticipantSupport > 0) {
-            controller.increaseParticipantSupportedPools(msg.sender, address(this));
-        }
+        // Notify the controller of the new participant support
+        controller.updateUserLockedBalance(
+            address(governanceToken), msg.sender, newTotalParticipantSupport, address(this)
+        );
     }
 
     /* *************************************************************************************************************************************/
