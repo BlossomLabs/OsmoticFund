@@ -7,3 +7,4 @@ libs = ['lib'] # The directories to search for libraries
 src = 'pkg/contracts/src'
 test = 'pkg/contracts/test'
 out = 'pkg/contracts/out'
+fs_permissions = [{ access = "read-write", path = "./" }]
