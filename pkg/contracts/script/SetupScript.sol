@@ -21,7 +21,6 @@ contract SetupScript is UpgradeScripts {
         UUPSUpgradeable(_proxy).upgradeTo(_newImplementation);
     }
 
-    // TODO: add CREATE2 factory deployer so we can use this script localy
     // /// @dev override using forge's built-in create2 deployer (only works for specific chains, or: use your own!)
     // function deployCode(bytes memory code) internal override returns (address addr) {
     //     uint256 salt = 0x1234;
