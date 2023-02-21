@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 
 import {UpgradeableBeacon} from "@oz/proxy/beacon/UpgradeableBeacon.sol";
 
+import {NotOsmoticPool} from "../src/OsmoticController.sol";
 import {InvalidProjectList, OsmoticPool, OsmoticParams} from "../src/OsmoticPool.sol";
 
 import {IProjectList} from "../src/interfaces/IProjectList.sol";
@@ -24,6 +25,11 @@ contract OsmoticControllerTest is Test, BaseSetup {
         super.setUp();
 
         params = OsmoticParams({decay: 1, drop: 2, maxFlow: 3, minStakeRatio: 4});
+
+        bytes memory initCall =
+            abi.encodeCall(OsmoticPool.initialize, (fundingToken, governanceToken, registry, params));
+
+        pool = OsmoticPool(controller.createOsmoticPool(initCall));
     }
 
     function testPause() public {
@@ -46,11 +52,7 @@ contract OsmoticControllerTest is Test, BaseSetup {
     }
 
     function testCreatePool() public {
-        bytes memory initCall =
-            abi.encodeCall(OsmoticPool.initialize, (fundingToken, governanceToken, registry, params));
-        address newPool = controller.createOsmoticPool(initCall);
-
-        assertEq(controller.isPool(newPool), true, "new pool is not registered");
+        assertEq(controller.isPool(address(pool)), true, "pool is not registered");
     }
 
     function testCreatePoolWithListNotRegistered() public {
@@ -77,25 +79,88 @@ contract OsmoticControllerTest is Test, BaseSetup {
 
         address newPool = controller.createOsmoticPool(initCall);
 
-        assertEq(controller.isPool(newPool), true, "new pool is not registered");
+        assertEq(controller.isPool(newPool), true, "pool is not registered");
     }
 
-    function testFuzzLockBalance(uint256 _amount) public {
+    function testOnlyPoolFunctions() public {
+        assertEq(controller.getParticipantSupportedPools(tokensOwner), 0, "supported pools mismatch");
+
+        vm.prank(address(pool));
+        controller.increaseParticipantSupportedPools(tokensOwner);
+
+        assertEq(controller.getParticipantSupportedPools(tokensOwner), 1, "supported pools mismatch");
+
+        vm.prank(address(pool));
+        controller.decreaseParticipantSupportedPools(tokensOwner);
+
+        assertEq(controller.getParticipantSupportedPools(tokensOwner), 0, "supported pools mismatch");
+    }
+
+    function testOnlyPoolWhenNotPool() public {
+        vm.expectRevert(abi.encodeWithSelector(NotOsmoticPool.selector));
+        controller.decreaseParticipantSupportedPools(tokensOwner);
+    }
+
+    function stakingPreTransactions(uint256 _amount) internal {
         vm.assume(_amount > 0);
         vm.assume(_amount <= governanceToken.balanceOf(tokensOwner));
 
         // get staking
         IStaking staking = stakingFactory.getOrCreateInstance(address(governanceToken));
 
-        vm.startPrank(tokensOwner);
         governanceToken.approve(address(staking), _amount);
         staking.stake(_amount, "");
         staking.allowManager(address(controller), _amount, "");
+    }
 
+    function testFuzzLockUnlock(uint256 _amount) public {
+        vm.startPrank(tokensOwner);
+        stakingPreTransactions(_amount);
         controller.lockBalance(address(governanceToken), _amount);
 
-        assertEq(
-            controller.getParticipantStaking(tokensOwner, address(governanceToken)), _amount, "locked balance mismatch"
-        );
+        (uint256 lockedBalanceBefore,) = controller.getStakingLock(address(governanceToken), tokensOwner);
+
+        assertEq(lockedBalanceBefore, _amount, "locked balance mismatch");
+
+        controller.unlockBalance(address(governanceToken));
+
+        (uint256 lockedBalanceAfter,) = controller.getStakingLock(address(governanceToken), tokensOwner);
+
+        assertEq(lockedBalanceAfter, 0, "locked balance mismatch");
     }
+
+    function testFuzzUnlockWhenSupportingPool(uint256 _amount) public {
+        vm.startPrank(tokensOwner);
+        stakingPreTransactions(_amount);
+        controller.lockBalance(address(governanceToken), _amount);
+        vm.stopPrank();
+
+        vm.prank(address(pool));
+        controller.increaseParticipantSupportedPools(tokensOwner);
+
+        vm.expectRevert("OsmoticController: cannot unlock while supporting a pool");
+
+        vm.prank(tokensOwner);
+        controller.unlockBalance(address(governanceToken));
+    }
+
+    function testFuzzCanUnlockWhenSupportingPools(uint256 _amount) public {
+        vm.startPrank(tokensOwner);
+        stakingPreTransactions(_amount);
+        controller.lockBalance(address(governanceToken), _amount);
+        vm.stopPrank();
+
+        vm.prank(address(pool));
+        controller.increaseParticipantSupportedPools(tokensOwner);
+
+        // get staking
+        IStaking staking = stakingFactory.getOrCreateInstance(address(governanceToken));
+
+        vm.expectRevert("STAKING_CANNOT_UNLOCK");
+
+        vm.prank(tokensOwner);
+        staking.unlock(tokensOwner, address(controller), _amount);
+    }
+
+    // TODO: include lock + support once we have OsmoticPool tests
 }

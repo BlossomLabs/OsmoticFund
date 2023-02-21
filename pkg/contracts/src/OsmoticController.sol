@@ -106,12 +106,6 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    // TODO: evaluate if is possible to have this logic here beacuse of ownership
-    // otherwise the deployer does the beacon upgrades manually
-    // function updateOsmoticPool(address _newImplementation) external onlyOwner {
-    //     beacon.upgradeTo(_newImplementation);
-    // }
-
     /* *************************************************************************************************************************************/
     /* ** Pool Creation Function                                                                                                       ***/
     /* *************************************************************************************************************************************/
@@ -144,10 +138,12 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
         _lockBalance(staking, msg.sender, _amount);
     }
 
-    function unlockBalance(address _token, uint256 _amount) public whenNotPaused {
-        IStaking staking = stakingFactory.getInstance(_token);
+    function unlockBalance(address _token) public whenNotPaused {
+        require(participantSupportedPools[msg.sender] == 0, "OsmoticController: cannot unlock while supporting a pool");
 
-        _unlockBalance(staking, msg.sender, _amount);
+        (uint256 lockedBalance,) = getStakingLock(_token, msg.sender);
+
+        _unlockBalance(stakingFactory.getInstance(_token), msg.sender, lockedBalance);
     }
 
     /* *************************************************************************************************************************************/
@@ -164,35 +160,26 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
         _pool.updateProjectSupports(_participantUpdates);
     }
 
-    function unsupportAndUnlock(
-        OsmoticPool _pool,
-        uint256 _unlockedAmount,
-        ParticipantSupportUpdate[] calldata _participantUpdates
-    ) external whenNotPaused {
+    function unsupportAndUnlock(OsmoticPool _pool, ParticipantSupportUpdate[] calldata _participantUpdates)
+        external
+        whenNotPaused
+    {
         _pool.updateProjectSupports(_participantUpdates);
 
-        unlockBalance(address(_pool.governanceToken()), _unlockedAmount);
+        unlockBalance(address(_pool.governanceToken()));
     }
 
     /* *************************************************************************************************************************************/
     /* ** Participant Supported Pools Functions                                                                                          ***/
     /* *************************************************************************************************************************************/
 
-    function increaseParticipantSupportedPools(address _participant, address _pool)
-        external
-        whenNotPaused
-        onlyPool(_pool)
-    {
+    function increaseParticipantSupportedPools(address _participant) external whenNotPaused onlyPool(msg.sender) {
         participantSupportedPools[_participant]++;
 
         emit ParticipantSupportedPoolsChanged(_participant, participantSupportedPools[_participant]);
     }
 
-    function decreaseParticipantSupportedPools(address _participant, address _pool)
-        external
-        whenNotPaused
-        onlyPool(_pool)
-    {
+    function decreaseParticipantSupportedPools(address _participant) external whenNotPaused onlyPool(msg.sender) {
         participantSupportedPools[_participant]--;
 
         emit ParticipantSupportedPoolsChanged(_participant, participantSupportedPools[_participant]);
@@ -214,8 +201,21 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
         return participantSupportedPools[_user] == 0;
     }
 
-    function getParticipantStaking(address _participant, address _token) public view returns (uint256) {
-        return stakingFactory.getInstance(_token).lockedBalanceOf(_participant);
+    /**
+     * @dev Tell details of a `_user`'s lock managed by the controller for a given `_token`
+     * @param _token Token
+     * @param _user Address
+     * @return locked Amount of locked tokens
+     * @return allowance Amount of tokens that the controller is allowed to lock
+     */
+    function getStakingLock(address _token, address _user) public view returns (uint256 locked, uint256 allowance) {
+        IStaking staking = stakingFactory.getInstance(_token);
+
+        (locked, allowance) = staking.getLock(_user, address(this));
+    }
+
+    function getParticipantSupportedPools(address _participant) external view returns (uint256) {
+        return participantSupportedPools[_participant];
     }
 
     /* *************************************************************************************************************************************/

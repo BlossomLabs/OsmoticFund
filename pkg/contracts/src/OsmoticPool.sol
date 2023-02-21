@@ -142,9 +142,9 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
      * @dev Support with an amount of tokens on a proposal
      */
     function updateProjectSupports(ParticipantSupportUpdate[] calldata _participantUpdates) external {
-        uint256 availableStake = controller.getParticipantStaking(msg.sender, address(governanceToken));
-
-        require(availableStake > 0, "NO_STAKE_AVAILABLE");
+        // Fetch the lock allowance that the Controller was given for the governance token on the Staking
+        (, uint256 stakingAllowance) = controller.getStakingLock(address(governanceToken), msg.sender);
+        require(stakingAllowance > 0, "NO_STAKE_ALLOWANCE_AVAILABLE");
 
         // We store the old support to check if we need to notify the controller
         uint256 oldTotalParticipantSupport = totalParticipantSupport[msg.sender];
@@ -160,9 +160,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         }
 
         uint256 newTotalParticipantSupport = _applyDelta(totalParticipantSupport[msg.sender], deltaSupportSum);
-
-        require(newTotalParticipantSupport <= availableStake, "NOT_ENOUGH_STAKE");
-
+        require(newTotalParticipantSupport <= stakingAllowance, "NOT_ENOUGH_STAKE_ALLOWANCE");
         totalParticipantSupport[msg.sender] = newTotalParticipantSupport;
 
         totalSupport = _applyDelta(totalSupport, deltaSupportSum);
@@ -183,9 +181,9 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
 
         // Notify the controller if the user is now supporting or unsupporting projects
         if (oldTotalParticipantSupport > 0 && newTotalParticipantSupport == 0) {
-            controller.decreaseParticipantSupportedPools(msg.sender, address(this));
+            controller.decreaseParticipantSupportedPools(msg.sender);
         } else if (oldTotalParticipantSupport == 0 && newTotalParticipantSupport > 0) {
-            controller.increaseParticipantSupportedPools(msg.sender, address(this));
+            controller.increaseParticipantSupportedPools(msg.sender);
         }
     }
 
