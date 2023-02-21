@@ -14,4 +14,4 @@
 	url = https://github.com/abdk-consulting/abdk-libraries-solidity
 [submodule "lib/upgrade-scripts"]
 	path = lib/upgrade-scripts
-	url = https://github.com/0xPhaze/upgrade-scripts
+	url = https://github.com/BlossomLabs/upgrade-scripts
