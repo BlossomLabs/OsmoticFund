@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 import {OwnableUpgradeable} from "@oz-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
 
-import {IERC20} from "@oz/token/ERC20/IERC20.sol";
+import {MimeToken} from "mime-token/MimeToken.sol";
 import {ISuperToken} from "./interfaces/ISuperToken.sol";
 
 import {ICFAv1Forwarder} from "./interfaces/ICFAv1Forwarder.sol";
@@ -13,18 +13,19 @@ import {OsmoticFormula, OsmoticParams} from "./OsmoticFormula.sol";
 import {OsmoticController} from "./OsmoticController.sol";
 
 error InvalidProjectList();
+error InvalidGovernanceToken();
 error SupportUnderflow();
 error ProjectAlreadyActive(uint256 projectId);
 error ProjectNeedsMoreStake(uint256 projectId, uint256 requiredStake, uint256 currentStake);
 
-struct ParticipantSupportUpdate {
+struct ProjectSupport {
     uint256 projectId;
     int256 deltaSupport;
 }
 
 contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
-    ICFAv1Forwarder public immutable cfaForwarder;
-    OsmoticController public immutable controller;
+    address public immutable cfaForwarder;
+    address public immutable controller;
 
     uint8 constant MAX_ACTIVE_PROJECTS = 25;
 
@@ -45,11 +46,13 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         mapping(address => uint256) participantSupports;
     }
 
-    IProjectList public projectList;
-    ISuperToken public fundingToken;
-    IERC20 public governanceToken;
-    OsmoticParams public osmoticParams;
+    address public projectList;
+    address public fundingToken;
+    address public governanceToken;
+
     uint256 public totalSupport;
+
+    OsmoticParams public osmoticParams;
 
     // projectId => PoolProject
     mapping(uint256 => PoolProject) public poolProjects;
@@ -67,30 +70,35 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     event ProjectSupportUpdated(uint256 indexed projectId, address participant, int256 delta);
     event FlowSynced(uint256 indexed projectId, address beneficiary, uint256 flowRate);
 
-    constructor(ICFAv1Forwarder _cfaForwarder, OsmoticController _controller) {
+    constructor(address _cfaForwarder, address _controller) {
         _disableInitializers();
 
-        cfaForwarder = _cfaForwarder;
-        controller = _controller;
+        require((cfaForwarder = _cfaForwarder) != address(0), "Zero CFA Forwarder");
+        require((controller = _controller) != address(0), "Zero Controller");
     }
 
     function initialize(
-        ISuperToken _fundingToken,
-        IERC20 _governanceToken,
-        IProjectList _projectList,
+        address _fundingToken,
+        address _governanceToken,
+        address _projectList,
         OsmoticParams calldata _params
     ) public initializer {
         __Ownable_init();
         __OsmoticFormula_init(_params);
 
-        if (controller.isList(address(_projectList))) {
+        require((fundingToken = _fundingToken) != address(0), "Zero Funding Token");
+
+        if (OsmoticController(controller).isList(_projectList)) {
             projectList = _projectList;
         } else {
             revert InvalidProjectList();
         }
 
-        fundingToken = _fundingToken;
-        governanceToken = _governanceToken;
+        if (OsmoticController(controller).isMime(_governanceToken)) {
+            governanceToken = _governanceToken;
+        } else {
+            revert InvalidGovernanceToken();
+        }
     }
 
     /* *************************************************************************************************************************************/
@@ -98,7 +106,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     /* *************************************************************************************************************************************/
 
     function activateProject(uint256 _projectId) public {
-        if (!projectList.projectExists(_projectId)) {
+        if (!IProjectList(projectList).projectExists(_projectId)) {
             revert ProjectNotInList(_projectId);
         }
 
@@ -135,39 +143,32 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     }
 
     /* *************************************************************************************************************************************/
-    /* ** Participant Support Updating Function                                                                                                    ***/
+    /* ** Participant Support Function                                                                                                   ***/
     /* *************************************************************************************************************************************/
 
-    /**
-     * @dev Support with an amount of tokens on a proposal
-     */
-    function updateProjectSupports(ParticipantSupportUpdate[] calldata _participantUpdates) external {
-        // Fetch the lock allowance that the Controller was given for the governance token on the Staking
-        (, uint256 stakingAllowance) = controller.getStakingLock(address(governanceToken), msg.sender);
-        require(stakingAllowance > 0, "NO_STAKE_ALLOWANCE_AVAILABLE");
-
-        // We store the old support to check if we need to notify the controller
-        uint256 oldTotalParticipantSupport = totalParticipantSupport[msg.sender];
+    function supportProjects(ProjectSupport[] calldata _projectSupports) public {
+        uint256 participantBalance = MimeToken(governanceToken).balanceOf(msg.sender);
+        require(participantBalance > 0, "NO_BALANCE_AVAILABLE");
 
         int256 deltaSupportSum = 0;
-        // Check that the sum of supports is not greater than the available stake
-        for (uint256 i = 0; i < _participantUpdates.length; i++) {
-            if (!projectList.projectExists(_participantUpdates[i].projectId)) {
-                revert ProjectNotInList(_participantUpdates[i].projectId);
+        for (uint256 i = 0; i < _projectSupports.length; i++) {
+            if (!IProjectList(projectList).projectExists(_projectSupports[i].projectId)) {
+                revert ProjectNotInList(_projectSupports[i].projectId);
             }
 
-            deltaSupportSum += _participantUpdates[i].deltaSupport;
+            deltaSupportSum += _projectSupports[i].deltaSupport;
         }
 
         uint256 newTotalParticipantSupport = _applyDelta(totalParticipantSupport[msg.sender], deltaSupportSum);
-        require(newTotalParticipantSupport <= stakingAllowance, "NOT_ENOUGH_STAKE_ALLOWANCE");
+        // Check that the sum of support is not greater than the participant balance
+        require(newTotalParticipantSupport <= participantBalance, "NOT_ENOUGH_BALANCE");
         totalParticipantSupport[msg.sender] = newTotalParticipantSupport;
 
         totalSupport = _applyDelta(totalSupport, deltaSupportSum);
 
-        for (uint256 i = 0; i < _participantUpdates.length; i++) {
-            uint256 projectId = _participantUpdates[i].projectId;
-            int256 delta = _participantUpdates[i].deltaSupport;
+        for (uint256 i = 0; i < _projectSupports.length; i++) {
+            uint256 projectId = _projectSupports[i].projectId;
+            int256 delta = _projectSupports[i].deltaSupport;
 
             PoolProject storage project = poolProjects[projectId];
 
@@ -178,13 +179,17 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
 
             emit ProjectSupportUpdated(projectId, msg.sender, delta);
         }
+    }
 
-        // Notify the controller if the user is now supporting or unsupporting projects
-        if (oldTotalParticipantSupport > 0 && newTotalParticipantSupport == 0) {
-            controller.decreaseParticipantSupportedPools(msg.sender);
-        } else if (oldTotalParticipantSupport == 0 && newTotalParticipantSupport > 0) {
-            controller.increaseParticipantSupportedPools(msg.sender);
-        }
+    function claimAndSupportProjects(
+        uint256 index,
+        address account,
+        uint256 amount,
+        bytes32[] calldata merkleProof,
+        ProjectSupport[] calldata _projectSupports
+    ) external {
+        MimeToken(governanceToken).claim(index, account, amount, merkleProof);
+        supportProjects(_projectSupports);
     }
 
     /* *************************************************************************************************************************************/
@@ -192,12 +197,12 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     /* *************************************************************************************************************************************/
 
     function sync() external {
-        uint256 allowance = fundingToken.allowance(owner(), address(this));
+        uint256 allowance = ISuperToken(fundingToken).allowance(owner(), address(this));
         if (allowance > 0) {
-            fundingToken.transferFrom(owner(), address(this), allowance);
+            ISuperToken(fundingToken).transferFrom(owner(), address(this), allowance);
         }
 
-        uint256 funds = fundingToken.balanceOf(address(this));
+        uint256 funds = ISuperToken(fundingToken).balanceOf(address(this));
 
         for (uint256 i = 0; i < activeProjectIds.length; i++) {
             uint256 projectId = activeProjectIds[i];
@@ -206,7 +211,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
             }
 
             // Check the beneficiary doesn't change
-            Project memory project = projectList.getProject(projectId);
+            Project memory project = IProjectList(projectList).getProject(projectId);
 
             address beneficiary = project.beneficiary;
             address oldBeneficiary = poolProjects[projectId].beneficiary;
@@ -214,14 +219,16 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
             if (oldBeneficiary != beneficiary) {
                 // Remove the flow from the old beneficiary if it has changed
                 if (oldBeneficiary != address(0)) {
-                    cfaForwarder.setFlowrate(fundingToken, oldBeneficiary, 0);
+                    ICFAv1Forwarder(cfaForwarder).setFlowrate(ISuperToken(fundingToken), oldBeneficiary, 0);
                 }
                 // We don't have to update the flow rate because it will be updated next
                 poolProjects[projectId].beneficiary = beneficiary;
             }
 
             uint256 currentRate = _getCurrentRate(projectId, funds);
-            cfaForwarder.setFlowrate(fundingToken, beneficiary, int96(int256(currentRate)));
+            ICFAv1Forwarder(cfaForwarder).setFlowrate(
+                ISuperToken(fundingToken), beneficiary, int96(int256(currentRate))
+            );
 
             poolProjects[projectId].flowLastRate = currentRate;
             poolProjects[projectId].flowLastTime = block.timestamp;
@@ -259,11 +266,11 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     /* *************************************************************************************************************************************/
 
     function getCurrentRate(uint256 _projectId) external view returns (uint256) {
-        return _getCurrentRate(_projectId, fundingToken.balanceOf(address(this)));
+        return _getCurrentRate(_projectId, ISuperToken(fundingToken).balanceOf(address(this)));
     }
 
     function getTargetRate(uint256 _projectId) external view returns (uint256) {
-        return _getTargetRate(_projectId, fundingToken.balanceOf(address(this)));
+        return _getTargetRate(_projectId, ISuperToken(fundingToken).balanceOf(address(this)));
     }
 
     /* *************************************************************************************************************************************/
@@ -281,8 +288,8 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     function _deactivateProject(uint256 _index) internal {
         uint256 projectId = activeProjectIds[_index];
         poolProjects[projectId].active = false;
-        Project memory project = projectList.getProject(projectId);
-        cfaForwarder.setFlowrate(fundingToken, project.beneficiary, 0);
+        Project memory project = IProjectList(projectList).getProject(projectId);
+        ICFAv1Forwarder(cfaForwarder).setFlowrate(ISuperToken(fundingToken), project.beneficiary, 0);
 
         emit ProjectDeactivated(projectId);
     }

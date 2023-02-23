@@ -4,3 +4,4 @@ forge-std/=lib/forge-std/src/
 @oz-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
 abdk-libraries/=lib/abdk-libraries-solidity/
 upgrade-scripts/=lib/upgrade-scripts/src/
+mime-token/=lib/mime-token/src/
