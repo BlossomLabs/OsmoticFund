@@ -22,7 +22,7 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
 
     mapping(address => bool) public isPool;
     mapping(address => bool) public isList;
-    mapping(address => bool) public isMime;
+    mapping(address => bool) public isToken;
 
     /* *************************************************************************************************************************************/
     /* ** Events                                                                                                                         ***/
@@ -30,7 +30,7 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
 
     event OsmoticPoolCreated(address indexed pool);
     event ProjectListCreated(address indexed list);
-    event MimeTokenCreated(address indexed mime);
+    event TokenCreated(address indexed token);
 
     constructor(uint256 _version, address _initImplementation, address _projectRegistry) {
         _disableInitializers();
@@ -107,14 +107,14 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
     function createMimeToken(string calldata name, string calldata symbol, bytes32 merkleRoot)
         external
         whenNotPaused
-        returns (address mime_)
+        returns (address token_)
     {
-        MimeToken mime = new MimeToken(name, symbol, merkleRoot);
-        mime.transferOwnership(msg.sender);
+        MimeToken token = new MimeToken(name, symbol, merkleRoot);
+        token.transferOwnership(msg.sender);
 
-        mime_ = address(mime);
-        isMime[mime_] = true;
+        token_ = address(token);
+        isToken[token_] = true;
 
-        emit MimeTokenCreated(mime_);
+        emit TokenCreated(token_);
     }
 }

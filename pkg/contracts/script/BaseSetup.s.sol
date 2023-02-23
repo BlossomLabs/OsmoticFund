@@ -5,7 +5,7 @@ import {UpgradeableBeacon} from "@oz/proxy/beacon/UpgradeableBeacon.sol";
 
 import {IMimeToken} from "mime-token/IMimeToken.sol";
 
-import {SetupScript} from "./SetupScript.sol";
+import {SetupScript} from "./SetupScript.s.sol";
 
 import {OsmoticController} from "../src/OsmoticController.sol";
 import {ProjectRegistry} from "../src/projects/ProjectRegistry.sol";

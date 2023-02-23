@@ -7,7 +7,7 @@ import {BeneficiaryAlreadyExists, UnauthorizedProjectAdmin} from "../src/project
 
 import {Project} from "../src/interfaces/IProjectList.sol";
 
-import {BaseSetup} from "../script/BaseSetup.sol";
+import {BaseSetup} from "../script/BaseSetup.s.sol";
 
 contract ProjectRegistryTest is Test, BaseSetup {
     address beneficiary = address(1);

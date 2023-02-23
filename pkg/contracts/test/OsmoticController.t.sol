@@ -9,7 +9,7 @@ import {InvalidProjectList, OsmoticPool, OsmoticParams} from "../src/OsmoticPool
 
 import {IProjectList} from "../src/interfaces/IProjectList.sol";
 
-import {BaseSetup} from "../script/BaseSetup.sol";
+import {BaseSetup} from "../script/BaseSetup.s.sol";
 
 contract OsmoticControllerTest is Test, BaseSetup {
     OsmoticPool pool;

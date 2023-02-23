@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
 
-import {BaseSetup} from "../script/BaseSetup.sol";
+import {BaseSetup} from "../script/BaseSetup.s.sol";
 
 contract BaseSetupTest is Test, BaseSetup {
     function setUp() public override {
@@ -28,7 +28,7 @@ contract BaseSetupTest is Test, BaseSetup {
         );
         assertEq(controller.projectRegistry(), address(registry), "Controller: project registry mismatch");
         assertEq(controller.isList(address(registry)), true, "Controller: registry not set as default list");
-        assertEq(controller.isMime(address(governanceToken)), true, "Controller: governance token not mime");
+        assertEq(controller.isToken(address(governanceToken)), true, "Controller: governance token not mime");
 
         // token
         assertEq(governanceToken.name(), "Osmotic", "Token: name mismatch");
