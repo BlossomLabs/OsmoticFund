@@ -28,6 +28,11 @@ contract BaseSetupTest is Test, BaseSetup {
         );
         assertEq(controller.projectRegistry(), address(registry), "Controller: project registry mismatch");
         assertEq(controller.isList(address(registry)), true, "Controller: registry not set as default list");
-        assertEq(address(controller.stakingFactory()), stakingFactoryAddress, "Controller: staking factory mismatch");
+        assertEq(controller.isMime(address(governanceToken)), true, "Controller: governance token not mime");
+
+        // token
+        assertEq(governanceToken.name(), "Osmotic", "Token: name mismatch");
+        assertEq(governanceToken.symbol(), "OSMO", "Token: symbol mismatch");
+        assertEq(governanceToken.merkleRoot(), bytes32(0), "Token: merkle root mismatch");
     }
 }

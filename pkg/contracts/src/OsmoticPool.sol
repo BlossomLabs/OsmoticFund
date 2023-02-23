@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 import {OwnableUpgradeable} from "@oz-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
 
-import {MimeToken} from "mime-token/MimeToken.sol";
+import {IMimeToken} from "mime-token/IMimeToken.sol";
 import {ISuperToken} from "./interfaces/ISuperToken.sol";
 
 import {ICFAv1Forwarder} from "./interfaces/ICFAv1Forwarder.sol";
@@ -34,7 +34,8 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     /* *************************************************************************************************************************************/
 
     struct PoolProject {
-        uint256 projectSupport;
+        // round => project support
+        mapping(uint256 => uint256) projectSupportAt;
         uint256 flowLastRate;
         uint256 flowLastTime;
         bool active;
@@ -43,21 +44,23 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
          * can be updated in the ProjectRegistry
          */
         address beneficiary;
-        mapping(address => uint256) participantSupports;
+        // round => participant => support
+        mapping(uint256 => mapping(address => uint256)) participantSupportAt;
     }
 
     address public projectList;
     address public fundingToken;
     address public governanceToken;
 
-    uint256 public totalSupport;
-
     OsmoticParams public osmoticParams;
 
     // projectId => PoolProject
     mapping(uint256 => PoolProject) public poolProjects;
 
-    mapping(address => uint256) internal totalParticipantSupport;
+    // round => total support
+    mapping(uint256 => uint256) private totalSupportAt;
+    // round => participant => total support
+    mapping(uint256 => mapping(address => uint256)) private totalParticipantSupportAt;
 
     uint256[MAX_ACTIVE_PROJECTS] internal activeProjectIds;
 
@@ -67,7 +70,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
 
     event ProjectActivated(uint256 indexed projectId);
     event ProjectDeactivated(uint256 indexed projectId);
-    event ProjectSupportUpdated(uint256 indexed projectId, address participant, int256 delta);
+    event ProjectSupportUpdated(uint256 indexed round, uint256 indexed projectId, address participant, int256 delta);
     event FlowSynced(uint256 indexed projectId, address beneficiary, uint256 flowRate);
 
     constructor(address _cfaForwarder, address _controller) {
@@ -110,7 +113,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
             revert ProjectNotInList(_projectId);
         }
 
-        uint256 minSupport = poolProjects[_projectId].projectSupport;
+        uint256 minSupport = projectSupport(_projectId);
         uint256 minIndex = _projectId;
 
         for (uint256 i = 0; i < activeProjectIds.length; i++) {
@@ -123,14 +126,14 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
                 minIndex = i;
                 break;
             }
-            if (poolProjects[activeProjectIds[i]].projectSupport < minSupport) {
-                minSupport = poolProjects[activeProjectIds[i]].projectSupport;
+            if (projectSupport(activeProjectIds[i]) < minSupport) {
+                minSupport = projectSupport(activeProjectIds[i]);
                 minIndex = i;
             }
         }
 
         if (activeProjectIds[minIndex] == _projectId) {
-            revert ProjectNeedsMoreStake(_projectId, minSupport, poolProjects[_projectId].projectSupport);
+            revert ProjectNeedsMoreStake(_projectId, minSupport, projectSupport(_projectId));
         }
 
         if (activeProjectIds[minIndex] == 0) {
@@ -147,7 +150,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     /* *************************************************************************************************************************************/
 
     function supportProjects(ProjectSupport[] calldata _projectSupports) public {
-        uint256 participantBalance = MimeToken(governanceToken).balanceOf(msg.sender);
+        uint256 participantBalance = IMimeToken(governanceToken).balanceOf(msg.sender);
         require(participantBalance > 0, "NO_BALANCE_AVAILABLE");
 
         int256 deltaSupportSum = 0;
@@ -159,12 +162,12 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
             deltaSupportSum += _projectSupports[i].deltaSupport;
         }
 
-        uint256 newTotalParticipantSupport = _applyDelta(totalParticipantSupport[msg.sender], deltaSupportSum);
+        uint256 newTotalParticipantSupport = _applyDelta(totalParticipantSupport(msg.sender), deltaSupportSum);
         // Check that the sum of support is not greater than the participant balance
         require(newTotalParticipantSupport <= participantBalance, "NOT_ENOUGH_BALANCE");
-        totalParticipantSupport[msg.sender] = newTotalParticipantSupport;
+        totalParticipantSupportAt[round()][msg.sender] = newTotalParticipantSupport;
 
-        totalSupport = _applyDelta(totalSupport, deltaSupportSum);
+        totalSupportAt[round()] = _applyDelta(totalSupport(), deltaSupportSum);
 
         for (uint256 i = 0; i < _projectSupports.length; i++) {
             uint256 projectId = _projectSupports[i].projectId;
@@ -172,12 +175,11 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
 
             PoolProject storage project = poolProjects[projectId];
 
-            uint256 projectParticipantSupport = project.participantSupports[msg.sender];
+            project.projectSupportAt[round()] = _applyDelta(projectSupport(projectId), delta);
+            project.participantSupportAt[round()][msg.sender] =
+                _applyDelta(participantSupport(projectId, msg.sender), delta);
 
-            project.projectSupport = _applyDelta(project.projectSupport, delta);
-            project.participantSupports[msg.sender] = _applyDelta(projectParticipantSupport, delta);
-
-            emit ProjectSupportUpdated(projectId, msg.sender, delta);
+            emit ProjectSupportUpdated(round(), projectId, msg.sender, delta);
         }
     }
 
@@ -188,7 +190,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         bytes32[] calldata merkleProof,
         ProjectSupport[] calldata _projectSupports
     ) external {
-        MimeToken(governanceToken).claim(index, account, amount, merkleProof);
+        IMimeToken(governanceToken).claim(index, account, amount, merkleProof);
         supportProjects(_projectSupports);
     }
 
@@ -265,6 +267,26 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     /* ** View Functions                                                                                                                 ***/
     /* *************************************************************************************************************************************/
 
+    function round() public view returns (uint256) {
+        return IMimeToken(governanceToken).round();
+    }
+
+    function projectSupport(uint256 _projectId) public view returns (uint256) {
+        return poolProjects[_projectId].projectSupportAt[round()];
+    }
+
+    function participantSupport(uint256 _projectId, address _participant) public view returns (uint256) {
+        return poolProjects[_projectId].participantSupportAt[round()][_participant];
+    }
+
+    function totalSupport() public view returns (uint256) {
+        return totalSupportAt[round()];
+    }
+
+    function totalParticipantSupport(address _participant) public view returns (uint256) {
+        return totalParticipantSupportAt[round()][_participant];
+    }
+
     function getCurrentRate(uint256 _projectId) external view returns (uint256) {
         return _getCurrentRate(_projectId, ISuperToken(fundingToken).balanceOf(address(this)));
     }
@@ -299,7 +321,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     /* *************************************************************************************************************************************/
 
     function _getTargetRate(uint256 _projectId, uint256 _funds) internal view returns (uint256) {
-        return calculateTargetRate(_funds, poolProjects[_projectId].projectSupport, totalSupport);
+        return calculateTargetRate(_funds, projectSupport(_projectId), totalSupport());
     }
 
     function _getCurrentRate(uint256 _projectId, uint256 _funds) internal view returns (uint256 _rate) {
