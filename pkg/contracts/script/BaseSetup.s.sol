@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 import {UpgradeableBeacon} from "@oz/proxy/beacon/UpgradeableBeacon.sol";
 
-import {IMimeToken} from "mime-token/IMimeToken.sol";
+import {IMimeToken} from "mime-token/interfaces/IMimeToken.sol";
 
 import {SetupScript} from "./SetupScript.s.sol";
 

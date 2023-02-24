@@ -117,4 +117,6 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
 
         emit TokenCreated(token_);
     }
+
+    // TODO: add function to create a pool a list and a token in the same transaction
 }

@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 import {OwnableUpgradeable} from "@oz-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
 
-import {IMimeToken} from "mime-token/IMimeToken.sol";
+import {IMimeToken} from "mime-token/interfaces/IMimeToken.sol";
 import {ISuperToken} from "./interfaces/ISuperToken.sol";
 
 import {ICFAv1Forwarder} from "./interfaces/ICFAv1Forwarder.sol";
