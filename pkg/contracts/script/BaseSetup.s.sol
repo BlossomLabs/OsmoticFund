@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.17;
 
-import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {UpgradeableBeacon} from "@oz/proxy/beacon/UpgradeableBeacon.sol";
 
-import {SetupScript} from "./SetupScript.sol";
+import {MimeTokenFactory} from "mime-token/MimeTokenFactory.sol";
+import {IMimeToken} from "mime-token/interfaces/IMimeToken.sol";
+
+import {SetupScript} from "./SetupScript.s.sol";
 
 import {OsmoticController} from "../src/OsmoticController.sol";
 import {ProjectRegistry} from "../src/projects/ProjectRegistry.sol";
 
 import {ISuperToken} from "../src/interfaces/ISuperToken.sol";
 import {ICFAv1Forwarder} from "../src/interfaces/ICFAv1Forwarder.sol";
-import {IStakingFactory} from "../src/interfaces/IStakingFactory.sol";
 
 contract Dummy {}
 
@@ -21,18 +22,17 @@ contract BaseSetup is SetupScript {
     string GOERLI_RPC_URL = vm.envOr("GOERLI_RPC_URL", string("https://rpc.ankr.com/eth_goerli"));
     // we use goerli address to test dependencies in the fork chain
     address cfaV1ForwarderAddress = 0xcfA132E353cB4E398080B9700609bb008eceB125;
-    address stakingFactoryAddress = 0x0C685827eFe3551291Fb7De853BfDb02C3eDF3a3;
+    address mimeTokenFactoryAddress = 0x357938548a20B910ae1F59Dc09CE37eA48856254;
     address fundingTokenAddress = 0x668168D45eEf326E0E746c86e11b212492Dd8309; // DAIx
-    address governanceTokenAddress = 0xa625BEDDA5c4d25A67aEccD9dc8c4b70D9f77E1f; // HNYT
     address tokensOwner = 0x5CfAdf589a694723F9Ed167D647582B3Db3b33b3;
 
     // tokens
     ISuperToken fundingToken;
-    IERC20 governanceToken;
+    IMimeToken governanceToken;
 
     // dependencies
-    IStakingFactory stakingFactory;
     ICFAv1Forwarder cfaForwarder;
+    MimeTokenFactory mimeTokenFactory;
 
     // osmotic contracts
     OsmoticController controller;
@@ -40,6 +40,7 @@ contract BaseSetup is SetupScript {
 
     // env
     uint256 version = 1;
+    bytes32 merkleRoot = 0x47c52ef48ec180964d648c3783e0b02202f16211392b986fbe2627f021657f2b; // init with: https://gist.github.com/0xGabi/4ca04edae9753ec32ffed7dc0cffe31e
     address deployer = address(this);
     address notAuthorized = address(200);
     address registryImplementation;
@@ -55,17 +56,13 @@ contract BaseSetup is SetupScript {
         vm.label(notAuthorized, "notAuthorized");
         vm.label(tokensOwner, "tokensOwner");
         vm.label(cfaV1ForwarderAddress, "cfaForwarder");
-        vm.label(stakingFactoryAddress, "stakingFactory");
+        vm.label(mimeTokenFactoryAddress, "mimeTokenFactory");
         vm.label(fundingTokenAddress, "fundingToken");
-        vm.label(governanceTokenAddress, "governanceToken");
-
-        // deploy tokens
-        fundingToken = ISuperToken(fundingTokenAddress);
-        governanceToken = IERC20(governanceTokenAddress);
 
         // init dependencies
+        fundingToken = ISuperToken(fundingTokenAddress);
         cfaForwarder = ICFAv1Forwarder(cfaV1ForwarderAddress);
-        stakingFactory = IStakingFactory(stakingFactoryAddress);
+        mimeTokenFactory = MimeTokenFactory(mimeTokenFactoryAddress);
 
         // deploy registry
         (address registryProxy, address registryImplementationAddress) =
@@ -77,7 +74,7 @@ contract BaseSetup is SetupScript {
         // We create a dummy contract to be used as the init beacon implementation
         Dummy dummy = new Dummy();
         (address proxy, address controllerImplementationAddress) = setUpContracts(
-            abi.encode(uint256(1), address(dummy), address(registry), address(stakingFactory)),
+            abi.encode(uint256(1), address(dummy), address(registry), address(mimeTokenFactory)),
             "OsmoticController",
             abi.encodeCall(OsmoticController.initialize, ())
         );
@@ -88,5 +85,12 @@ contract BaseSetup is SetupScript {
         osmoticPoolImplementation = setUpContract("OsmoticPool", abi.encode(address(cfaForwarder), address(controller)));
         UpgradeableBeacon beacon = UpgradeableBeacon(controller.beacon());
         beacon.upgradeTo(osmoticPoolImplementation);
+
+        // deploy governance token
+        governanceToken = IMimeToken(controller.createMimeToken("Osmotic Fund", "OF", merkleRoot));
+
+        vm.label(address(registry), "registry");
+        vm.label(address(controller), "controller");
+        vm.label(address(governanceToken), "governanceToken");
     }
 }

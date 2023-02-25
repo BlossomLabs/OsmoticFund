@@ -15,3 +15,7 @@
 [submodule "lib/upgrade-scripts"]
 	path = lib/upgrade-scripts
 	url = https://github.com/BlossomLabs/upgrade-scripts
+[submodule "lib/mime-token"]
+	path = lib/mime-token
+	url = https://github.com/BlossomLabs/mime-token
+	branch = initial-implementation
