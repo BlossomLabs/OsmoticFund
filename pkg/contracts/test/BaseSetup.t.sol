@@ -31,8 +31,8 @@ contract BaseSetupTest is Test, BaseSetup {
         assertEq(controller.isToken(address(governanceToken)), true, "Controller: governance token not mime");
 
         // token
-        assertEq(governanceToken.name(), "Osmotic", "Token: name mismatch");
-        assertEq(governanceToken.symbol(), "OSMO", "Token: symbol mismatch");
-        assertEq(governanceToken.merkleRoot(), bytes32(0), "Token: merkle root mismatch");
+        assertEq(governanceToken.name(), "Osmotic Fund", "Token: name mismatch");
+        assertEq(governanceToken.symbol(), "OF", "Token: symbol mismatch");
+        assertEq(governanceToken.merkleRoot(), merkleRoot, "Token: merkle root mismatch");
     }
 }
