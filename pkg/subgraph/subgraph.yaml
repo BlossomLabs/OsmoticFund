@@ -1,25 +1,37 @@
+# Do not edit subgraph.yaml, this is a generated file.
+# Instead, edit subgraph.template.yaml and run `yarn manifest-<network>-[staging]`
 specVersion: 0.0.4
+description: A template for the Osmotic Fund subgraph
+repository: https://github.com/BlossomLabs/OsmoticFund
 schema:
-  file: ./src/schema.graphql
+  file: ./schema.graphql
 dataSources:
+# Mime token factories
+  # MimeTokenFactory
   - kind: ethereum/contract
-    name: Counter
-    network: localhost
+    name: MimeTokenFactory@0.0.1
+    network: goerli
     source:
-      address: "0x5fbdb2315678afecb367f032d93f642f64180aa3"
-      abi: Counter
-      startBlock: 1
+      abi: MimeTokenFactory
+      address: '0x357938548a20B910ae1F59Dc09CE37eA48856254'
+      startBlock: 8552411
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.6
       language: wasm/assemblyscript
       entities:
-        - Number
-        - Sender
+        - OsmoticController
+        - OsmoticPool
+        - Project
+        - ProjectList
+        - ProjectRegistry
       abis:
-        - name: Counter
-          file: ../contracts/out/Counter.sol/Counter.json
+        - name: MimeTokenFactory
+          file: ./abis/MimeTokenFactory.json
+        - name: MimeToken
+          file: ./abis/MimeToken.json
       eventHandlers:
-        - event: SetNumber(address,uint256)
-          handler: handleSetNumber
-      file: ./src/mapping.ts
+        - event: MimeTokenCreated(address)
+          handler: handleMimeTokenCreated
+      file: ./src/mappings/MimeTokenFactory.ts
+# /Mime token factories
