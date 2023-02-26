@@ -1,0 +1,5 @@
+# Mime token factories
+{{#MimeTokenFactories}}
+  {{> MimeTokenFactory.template.yaml}}
+{{/MimeTokenFactories}}
+# /Mime token factories

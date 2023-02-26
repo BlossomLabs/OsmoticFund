@@ -52,7 +52,7 @@ type OsmoticPool @entity {
   fundingToken: Token!
   governanceToken: Token!
   projectList: ProjectList!
-  activeProjects: [Project!]! @derivedFrom(field: "osmoticPool")
+  activeProjects: [Project!]!
   osmoticParams: OsmoticParams!
 }
 
@@ -71,4 +71,5 @@ type Token @entity {
   decimals: Int!
   name: String!
   symbol: String!
+  osmoticController: OsmoticController
 }
