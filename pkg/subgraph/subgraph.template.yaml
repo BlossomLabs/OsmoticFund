@@ -7,3 +7,4 @@ schema:
   file: ./schema.graphql
 dataSources:
 {{> MimeTokenFactories.yaml}}
+{{> ProjectRegistry.yaml}}
