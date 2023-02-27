@@ -11,8 +11,9 @@ type OsmoticController @entity {
 type ProjectRegistry @entity {
   "<project registry's address>"
   id: ID!
+  owner: Bytes!
   version: Int!
-  osmoticController: OsmoticController!
+  osmoticController: OsmoticController
   projects: [Project!]! @derivedFrom(field: "projectRegistry")
 }
 

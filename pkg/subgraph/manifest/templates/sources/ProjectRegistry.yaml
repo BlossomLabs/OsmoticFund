@@ -1,0 +1,5 @@
+# Project registry
+{{#ProjectRegistry}}
+  {{> ProjectRegistry.template.yaml}}
+{{/ProjectRegistry}}
+# /Project Registry

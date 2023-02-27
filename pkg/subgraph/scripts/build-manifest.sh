@@ -16,10 +16,11 @@ cat $DATA
 
 # -p manifest/templates/contracts/OsmoticController.template.yaml \
 # -p manifest/templates/contracts/OsmoticPool.template.yaml \
-# -p manifest/templates/contracts/ProjectRegistry.template.yaml \
 
 mustache \
   -p manifest/templates/sources/MimeTokenFactories.yaml \
+  -p manifest/templates/sources/ProjectRegistry.yaml \
   -p manifest/templates/contracts/MimeTokenFactory.template.yaml \
+  -p manifest/templates/contracts/ProjectRegistry.template.yaml \
   $DATA \
   subgraph.template.yaml > subgraph.yaml
