@@ -18,7 +18,7 @@ type ProjectRegistry @entity {
 }
 
 type Project @entity {
-  "<project registry's address>-<project's beneficiary>"
+  "<project registry's address>-<project's id>"
   id: ID!
   admin: Bytes!
   beneficiary: Bytes!

@@ -10,7 +10,7 @@ import {
 export function handleProjectUpdated(event: ProjectUpdatedEvent): void {
   const project = loadOrCreateProjectEntity(
     event.address,
-    event.params.beneficiary
+    event.params.projectId
   );
 
   project.admin = event.params.admin;
