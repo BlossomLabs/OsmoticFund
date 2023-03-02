@@ -22,5 +22,6 @@ mustache \
   -p manifest/templates/sources/ProjectRegistry.yaml \
   -p manifest/templates/contracts/MimeTokenFactory.template.yaml \
   -p manifest/templates/contracts/ProjectRegistry.template.yaml \
+  -p manifest/templates/contracts/OwnableProjectList.template.yaml \
   $DATA \
   subgraph.template.yaml > subgraph.yaml

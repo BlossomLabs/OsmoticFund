@@ -8,3 +8,5 @@ schema:
 dataSources:
 {{> MimeTokenFactories.yaml}}
 {{> ProjectRegistry.yaml}}
+templates:
+  {{> OwnableProjectList.template.yaml}}
