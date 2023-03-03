@@ -45,3 +45,5 @@ pkg/contracts/broadcast/**/dry-run/
 # subgraph
 pkg/subgraph/generated
 subgraph.yaml
+pkg/subgraph/tests/.*
+matchstick
