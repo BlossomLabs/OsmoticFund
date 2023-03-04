@@ -1,7 +1,7 @@
 import { assert, beforeEach, clearStore, describe, test } from "matchstick-as";
 
-import { handleMimeTokenCreated } from "../../src/mappings/MimeTokenFactory";
-import { mockedTokenRPCCalls } from "../mocked-functions";
+import { handleMimeTokenCreated } from "../src/mappings/MimeTokenFactory";
+import { mockedTokenRPCCalls } from "./mocked-functions";
 import { createMimeTokenCreatedEvent } from "./utils";
 
 describe("when mapping MimeTokenFactory events", () => {

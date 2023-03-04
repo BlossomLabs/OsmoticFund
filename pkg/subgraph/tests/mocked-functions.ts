@@ -1,7 +1,7 @@
 import { Address } from "@graphprotocol/graph-ts";
 import { createMockedFunction } from "matchstick-as";
 
-import { getETHInt32, getETHString } from "./converters";
+import { getETHInt32, getETHString } from "./utils/converters";
 
 export function mockedTokenRPCCalls(
   address: string,
