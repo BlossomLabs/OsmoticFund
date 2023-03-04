@@ -7,21 +7,21 @@ import {
 } from "../../generated/schema";
 import { OwnableProjectList } from "../../generated/templates/OwnableProjectList/OwnableProjectList";
 
-import { formatAddress, join } from "./ids";
+import { formatAddress, join, ZERO_ADDR } from "./ids";
 
-function buildProjectRegistryId(projectRegistry: Address): string {
+export function buildProjectRegistryId(projectRegistry: Address): string {
   return formatAddress(projectRegistry);
 }
 
-function buildProjectId(projectRegistry: Address, projectId: BigInt): string {
+export function buildProjectId(projectRegistry: Address, projectId: BigInt): string {
   return join([formatAddress(projectRegistry), projectId.toString()]);
 }
 
-function buildProjectListId(projectList: Address): string {
+export function buildProjectListId(projectList: Address): string {
   return formatAddress(projectList);
 }
 
-function buildProjectProjectListId(
+export function buildProjectProjectListId(
   projectRegistry: Address,
   projectId: BigInt,
   projectList: Address
@@ -41,6 +41,8 @@ export function loadOrCreateProjectRegistryEntity(
 
   if (projectRegistryEntity == null) {
     projectRegistryEntity = new ProjectRegistryEntity(projectRegistryId);
+    projectRegistryEntity.version = -1
+    projectRegistryEntity.owner = Bytes.fromHexString(ZERO_ADDR)
   }
 
   return projectRegistryEntity;
@@ -56,9 +58,9 @@ export function loadOrCreateProjectEntity(
 
   if (projectEntity == null) {
     projectEntity = new ProjectEntity(projectEntityId);
-    projectEntity.admin = Address.fromI32(0);
-    projectEntity.beneficiary = Bytes.fromHexString("0x");
-    projectEntity.contentHash = Bytes.fromHexString("0x");
+    projectEntity.admin = Bytes.fromHexString(ZERO_ADDR);
+    projectEntity.beneficiary = Bytes.fromHexString(ZERO_ADDR);
+    projectEntity.contentHash = Bytes.fromHexString(ZERO_ADDR);
     projectEntity.projectRegistry = buildProjectRegistryId(projectRegistry);
   }
 
@@ -74,7 +76,7 @@ export function loadOrCreateProjectListEntity(
 
   if (projectListEntity === null) {
     projectListEntity = new ProjectListEntity(projectListId);
-    projectListEntity.owner = Address.fromI32(0);
+    projectListEntity.owner = Bytes.fromHexString(ZERO_ADDR);
     projectListEntity.name = "";
   }
 
