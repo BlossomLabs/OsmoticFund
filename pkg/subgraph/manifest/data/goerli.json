@@ -1,0 +1,19 @@
+{
+  "network": "goerli",
+  "description": "Subgraph for the Osmotic Protocol",
+  "OsmoticController": {
+    "address": "0x0000000000000000000000000000000000000000",
+    "startBlock": "0"
+  },
+  "ProjectRegistry": {
+    "address": "0x0000000000000000000000000000000000000000",
+    "startBlock": "0"
+  },
+  "MimeTokenFactories": [
+    {
+      "name": "MimeTokenFactory@0.0.1",
+      "address": "0x357938548a20B910ae1F59Dc09CE37eA48856254",
+      "startBlock": "8552411"
+    }
+  ]
+}

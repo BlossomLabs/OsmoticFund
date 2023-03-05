@@ -1,0 +1,76 @@
+type OsmoticController @entity {
+  "<controller's address>"
+  id: ID!
+  owner: Bytes!
+  version: Int!
+  projectRegistry: ProjectRegistry!
+  osmoticPools: [OsmoticPool!]! @derivedFrom(field: "osmoticController")
+  tokens: [Token!]! @derivedFrom(field: "osmoticController")
+}
+
+type ProjectRegistry @entity {
+  "<project registry's address>"
+  id: ID!
+  owner: Bytes!
+  version: Int!
+  osmoticController: OsmoticController
+  projects: [Project!]! @derivedFrom(field: "projectRegistry")
+}
+
+type Project @entity {
+  "<project registry's address>-<project's id>"
+  id: ID!
+  admin: Bytes!
+  beneficiary: Bytes!
+  contentHash: Bytes!
+  projectRegistry: ProjectRegistry!
+  projectLists: [ProjectProjectList!]! @derivedFrom(field: "project")
+}
+
+type ProjectList @entity {
+  "<project list's address>"
+  id: ID!
+  owner: Bytes
+  name: String
+  projects: [ProjectProjectList!]! @derivedFrom(field: "projectList")
+  osmoticPools: [OsmoticPool!]! @derivedFrom(field: "projectList")
+}
+
+type ProjectProjectList @entity {
+  "<project id>-<ownable project list id>"
+  id: ID!
+  project: Project!
+  projectList: ProjectList!
+}
+
+type OsmoticPool @entity {
+  "<osmotic controller's address>-<pool's address>"
+  id: ID!
+  address: Bytes!
+  owner: Bytes!
+  osmoticController: OsmoticController!
+  maxActiveProjects: Int!
+  fundingToken: Token!
+  governanceToken: Token!
+  projectList: ProjectList!
+  activeProjects: [Project!]!
+  osmoticParams: OsmoticParams!
+}
+
+type OsmoticParams @entity {
+  "<osmotic pool's id>"
+  id: ID!
+  decay: BigInt!
+  drop: BigInt!
+  maxFlow: BigInt!
+  minStakeRatio: BigInt!
+}
+
+type Token @entity {
+  "<token's address>"
+  id: ID!
+  decimals: Int!
+  name: String!
+  symbol: String!
+  osmoticController: OsmoticController
+}

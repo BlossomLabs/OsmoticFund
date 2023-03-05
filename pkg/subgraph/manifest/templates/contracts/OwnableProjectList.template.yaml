@@ -1,0 +1,33 @@
+# OwnableProjectList
+- kind: ethereum/contract
+  {{#name}}
+  name: {{name}}
+  {{/name}}
+  {{^name}}
+  name: OwnableProjectList
+  {{/name}}
+  network: {{network}}
+  source:
+    abi: OwnableProjectList
+    {{#address}}
+    address: '{{address}}'
+    {{/address}}
+    {{#startBlock}}
+    startBlock: {{startBlock}}
+    {{/startBlock}}
+  mapping:
+    kind: ethereum/events
+    apiVersion: 0.0.5
+    language: wasm/assemblyscript
+    entities:
+      - Project
+      - ProjectList
+    abis:
+      - name: OwnableProjectList
+        file: ./abis/OwnableProjectList.json
+    eventHandlers:
+      - event: ListUpdated(indexed uint256,bool)
+        handler: handleListUpdated
+      - event: OwnershipTransferred(indexed address,indexed address)   
+        handler: handleOwnershipTransferred
+    file: ./src/mappings/OwnableProjectList.ts
