@@ -1,17 +1,38 @@
-import { ListUpdated as ListUpdatedEvent, OwnershipTransferred as OwnershipTransferredEvent } from '../../generated/templates/OwnableProjectList/OwnableProjectList'
-import { loadOrCreateProjectListEntity, loadOrCreateProjectProjectListEntity } from '../utils/project'
-import { store } from '@graphprotocol/graph-ts'
+import { store } from "@graphprotocol/graph-ts";
 
-export function handleListUpdated(event : ListUpdatedEvent): void {
-  const projectList = loadOrCreateProjectProjectListEntity(event.address, event.params.projectId)
+import {
+  OwnableProjectList,
+  ListUpdated as ListUpdatedEvent,
+  OwnershipTransferred as OwnershipTransferredEvent,
+} from "../../generated/templates/OwnableProjectList/OwnableProjectList";
+import {
+  loadOrCreateProjectListEntity,
+  loadOrCreateProjectProjectListEntity,
+} from "../utils/project";
+
+export function handleListUpdated(event: ListUpdatedEvent): void {
+  const projectListContract = OwnableProjectList.bind(event.address);
+  const projectRegistry = projectListContract.projectRegistry();
+
+  const projectProjectList = loadOrCreateProjectProjectListEntity(
+    projectRegistry,
+    event.address,
+    event.params.projectId
+  );
 
   if (!event.params.included) {
-    store.remove('ProjectProjectListEntity', projectList.id)
+    store.remove("ProjectProjectList", projectProjectList.id);
+  } else {
+    projectProjectList.save();
   }
 }
 
-export function handleOwnershipTransferred(event: OwnershipTransferredEvent): void {
-  const projectList = loadOrCreateProjectListEntity(event.address)
+export function handleOwnershipTransferred(
+  event: OwnershipTransferredEvent
+): void {
+  const projectList = loadOrCreateProjectListEntity(event.address);
 
-  projectList.owner = event.params.newOwner
+  projectList.owner = event.params.newOwner;
+
+  projectList.save();
 }

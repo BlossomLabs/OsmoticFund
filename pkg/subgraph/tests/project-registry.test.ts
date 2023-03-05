@@ -19,10 +19,34 @@ import {
   createOwnershipTransferredEvent,
   stringToBytes,
 } from "./utils";
+import { OwnershipTransferred } from "../generated/ProjectRegistry/ProjectRegistry";
 
 describe("when mapping ProjectRegistry events", () => {
   beforeEach(() => {
     clearStore();
+  });
+
+  test("should map OwnershipTransferred correctly", () => {
+    const ownershipTransferredEvent =
+      createOwnershipTransferredEvent<OwnershipTransferred>(alice, bob);
+
+    handleOwnershipTransferred(ownershipTransferredEvent);
+
+    const projectRegistryEntityId =
+      ownershipTransferredEvent.address.toHexString();
+
+    assert.fieldEquals(
+      "ProjectRegistry",
+      projectRegistryEntityId,
+      "id",
+      projectRegistryEntityId
+    );
+    assert.fieldEquals(
+      "ProjectRegistry",
+      projectRegistryEntityId,
+      "owner",
+      bob
+    );
   });
 
   describe("when mapping ProjectUpdated events", () => {
@@ -113,24 +137,5 @@ describe("when mapping ProjectRegistry events", () => {
         bob
       );
     });
-  });
-
-  test("should map OwnershipTransferred correctly", () => {
-    const ownershipTransferredEvent = createOwnershipTransferredEvent(
-      alice,
-      bob
-    );
-
-    handleOwnershipTransferred(ownershipTransferredEvent);
-
-    const projectRegistryEntityId =
-      ownershipTransferredEvent.address.toHexString();
-
-    assert.fieldEquals(
-      "ProjectRegistry",
-      projectRegistryEntityId,
-      "owner",
-      bob
-    );
   });
 });
