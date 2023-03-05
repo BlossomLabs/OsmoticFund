@@ -13,7 +13,7 @@ import {
   handleOwnershipTransferred,
   handleProjectUpdated,
 } from "../src/mappings/ProjectRegistry";
-import { alice, bob } from "./constants";
+import { alice, bob } from "./utils/constants";
 import {
   createProjectUpdatedEvent,
   createOwnershipTransferredEvent,
