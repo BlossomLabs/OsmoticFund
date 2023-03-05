@@ -1,16 +1,17 @@
 import { newMockEvent } from "matchstick-as";
 
 import { getAddressEventParam } from "../converters";
-import { OwnershipTransferred as OwnershipTransferredEvent } from "../../../generated/ProjectRegistry/ProjectRegistry";
 
-export function createOwnershipTransferredEvent(
+/**
+ * Note: Need to use `T` as the return type to avoid a event mismatch error
+ * when using this function in different mapping tests
+ *  */
+export function createOwnershipTransferredEvent<T>(
   previousOwner: string,
   newOwner: string
-): OwnershipTransferredEvent {
+): T {
   // @ts-ignore
-  const ownershipTransferredEvent = changetype<OwnershipTransferredEvent>(
-    newMockEvent()
-  );
+  const ownershipTransferredEvent = changetype<T>(newMockEvent());
 
   ownershipTransferredEvent.parameters = new Array();
   ownershipTransferredEvent.parameters.push(
@@ -20,5 +21,5 @@ export function createOwnershipTransferredEvent(
     getAddressEventParam("newOwner", newOwner)
   );
 
-  return ownershipTransferredEvent
+  return ownershipTransferredEvent;
 }

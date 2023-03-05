@@ -5,7 +5,6 @@ import {
   ProjectList as ProjectListEntity,
   ProjectProjectList as ProjectProjectListEntity,
 } from "../../generated/schema";
-import { OwnableProjectList } from "../../generated/templates/OwnableProjectList/OwnableProjectList";
 
 import { formatAddress, join, ZERO_ADDR } from "./ids";
 
@@ -84,11 +83,10 @@ export function loadOrCreateProjectListEntity(
 }
 
 export function loadOrCreateProjectProjectListEntity(
+  projectRegistry: Address,
   projectList: Address,
   projectId: BigInt
 ): ProjectProjectListEntity {
-  const projectListContract = OwnableProjectList.bind(projectList);
-  const projectRegistry = projectListContract.projectRegistry();
   const projectProjectListId = buildProjectProjectListId(
     projectRegistry,
     projectId,

@@ -1,7 +1,7 @@
 import { Address } from "@graphprotocol/graph-ts";
 import { createMockedFunction } from "matchstick-as";
 
-import { getETHInt32, getETHString } from "./utils/converters";
+import { getETHAddress, getETHInt32, getETHString } from "./utils/converters";
 
 export function mockedTokenRPCCalls(
   address: string,
@@ -68,4 +68,14 @@ export function mockedTokenDecimals(
   )
     .withArgs([])
     .returns([getETHInt32(expectedDecimals)]);
+}
+
+export function mockedProjectRegistryRPCCall(address: string, expectedProjectRegistryAddress: string): void {
+  createMockedFunction(
+    Address.fromString(address),
+    "projectRegistry",
+    "projectRegistry():(address)"
+  )
+    .withArgs([])
+    .returns([getETHAddress(expectedProjectRegistryAddress)]);
 }
