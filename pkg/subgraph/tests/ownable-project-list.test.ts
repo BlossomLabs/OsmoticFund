@@ -15,9 +15,7 @@ import {
   handleOwnershipTransferred,
 } from "../src/mappings/OwnableProjectList";
 import { buildProjectId, buildProjectListId, buildProjectProjectListId } from "../src/utils/project";
-import { alice, bob, TRUE } from "./constants";
-import { mockedProjectRegistryRPCCall } from "./mocked-functions";
-import { createOwnershipTransferredEvent } from "./utils";
+import { alice, bob, createOwnershipTransferredEvent, mockedProjectRegistryRPCCall } from "./utils";
 import { createListUpdatedEvent } from "./utils/events/project-list";
 
 describe("OwnableProjectList mappings", () => {
