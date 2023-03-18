@@ -3,8 +3,8 @@ pragma solidity ^0.8.17;
 
 import {UpgradeableBeacon} from "@oz/proxy/beacon/UpgradeableBeacon.sol";
 
+import {MimeToken} from "mime-token/MimeToken.sol";
 import {MimeTokenFactory} from "mime-token/MimeTokenFactory.sol";
-import {IMimeToken} from "mime-token/interfaces/IMimeToken.sol";
 
 import {SetupScript} from "./SetupScript.s.sol";
 
@@ -22,13 +22,13 @@ contract BaseSetup is SetupScript {
     string GOERLI_RPC_URL = vm.envOr("GOERLI_RPC_URL", string("https://rpc.ankr.com/eth_goerli"));
     // we use goerli address to test dependencies in the fork chain
     address cfaV1ForwarderAddress = 0xcfA132E353cB4E398080B9700609bb008eceB125;
-    address mimeTokenFactoryAddress = 0x357938548a20B910ae1F59Dc09CE37eA48856254;
+    address mimeTokenFactoryAddress = 0xF4640Fdc86f20ef934F3A53584c02cD31d55EA1F;
     address fundingTokenAddress = 0x668168D45eEf326E0E746c86e11b212492Dd8309; // DAIx
     address tokensOwner = 0x5CfAdf589a694723F9Ed167D647582B3Db3b33b3;
 
     // tokens
     ISuperToken fundingToken;
-    IMimeToken governanceToken;
+    MimeToken governanceToken;
 
     // dependencies
     ICFAv1Forwarder cfaForwarder;
@@ -41,11 +41,14 @@ contract BaseSetup is SetupScript {
     // env
     uint256 version = 1;
     bytes32 merkleRoot = 0x47c52ef48ec180964d648c3783e0b02202f16211392b986fbe2627f021657f2b; // init with: https://gist.github.com/0xGabi/4ca04edae9753ec32ffed7dc0cffe31e
+    uint256 roundDuration = 1 weeks;
     address deployer = address(this);
     address notAuthorized = address(200);
     address registryImplementation;
     address osmoticPoolImplementation;
     address controllerImplementation;
+
+    uint256 timestamp;
 
     function setUp() public virtual {
         // if in fork mode create and select fork
@@ -87,7 +90,10 @@ contract BaseSetup is SetupScript {
         beacon.upgradeTo(osmoticPoolImplementation);
 
         // deploy governance token
-        governanceToken = IMimeToken(controller.createMimeToken("Osmotic Fund", "OF", merkleRoot));
+        timestamp = block.timestamp;
+        bytes memory initCall =
+            abi.encodeCall(MimeToken.initialize, ("Osmotic Fund", "OF", merkleRoot, timestamp, roundDuration));
+        governanceToken = MimeToken(mimeTokenFactory.createMimeToken(initCall));
 
         vm.label(address(registry), "registry");
         vm.label(address(controller), "controller");

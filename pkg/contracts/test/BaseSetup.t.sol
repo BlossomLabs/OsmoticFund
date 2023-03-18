@@ -28,11 +28,15 @@ contract BaseSetupTest is Test, BaseSetup {
         );
         assertEq(controller.projectRegistry(), address(registry), "Controller: project registry mismatch");
         assertEq(controller.isList(address(registry)), true, "Controller: registry not set as default list");
-        assertEq(controller.isToken(address(governanceToken)), true, "Controller: governance token not mime");
+        assertEq(controller.isTokenAllowed(address(governanceToken)), true, "Controller: governance token not mime");
 
         // token
+        assertEq(governanceToken.owner(), address(deployer), "Token: owner mismatch");
         assertEq(governanceToken.name(), "Osmotic Fund", "Token: name mismatch");
         assertEq(governanceToken.symbol(), "OF", "Token: symbol mismatch");
+        assertEq(governanceToken.decimals(), 18, "Token: decimals mismatch");
         assertEq(governanceToken.merkleRoot(), merkleRoot, "Token: merkle root mismatch");
+        assertEq(governanceToken.timestamp(), timestamp, "Token: timestamp mismatch");
+        assertEq(governanceToken.roundDuration(), roundDuration, "Token: round duration mismatch");
     }
 }

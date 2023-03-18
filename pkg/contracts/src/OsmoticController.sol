@@ -17,12 +17,15 @@ import {OsmoticPool, OsmoticParams} from "./OsmoticPool.sol";
 
 contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgradeable, UUPSUpgradeable {
     uint256 public immutable version;
+    uint256 public immutable deploymentTimestamp;
     UpgradeableBeacon public immutable beacon;
-    address public immutable projectRegistry;
-    address public immutable mimeTokenFactory;
+
+    address public projectRegistry;
+    address public mimeTokenFactory;
 
     mapping(address => bool) public isPool;
     mapping(address => bool) public isList;
+    mapping(address => bool) public isToken;
 
     /* *************************************************************************************************************************************/
     /* ** Events                                                                                                                         ***/
@@ -30,17 +33,23 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
 
     event OsmoticPoolCreated(address indexed pool);
     event ProjectListCreated(address indexed list);
+    event ProjectRegistryUpdated(address indexed projectRegistry);
+    event MimeTokenFactoryUpdated(address indexed mimeTokenFactory);
 
-    constructor(uint256 _version, address _initImplementation, address _projectRegistry, address _mimeTokenFactory) {
+    constructor(uint256 _version, address _osmoticPool, address _projectRegistry, address _mimeTokenFactory) {
         _disableInitializers();
 
-        beacon = new UpgradeableBeacon(_initImplementation);
+        beacon = new UpgradeableBeacon(_osmoticPool);
         // We transfer the ownership of the beacon to the deployer
         beacon.transferOwnership(msg.sender);
 
         version = _version;
+        deploymentTimestamp = block.timestamp;
         projectRegistry = _projectRegistry;
         mimeTokenFactory = _mimeTokenFactory;
+
+        emit ProjectRegistryUpdated(_projectRegistry);
+        emit MimeTokenFactoryUpdated(_mimeTokenFactory);
     }
 
     function initialize() public initializer {
@@ -79,10 +88,24 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     /* *************************************************************************************************************************************/
+    /* ** Setter Functions                                                                                                               ***/
+    /* *************************************************************************************************************************************/
+
+    function setProjectRegistry(address _projectRegistry) external onlyOwner {
+        projectRegistry = _projectRegistry;
+        emit ProjectRegistryUpdated(_projectRegistry);
+    }
+
+    function setMimeTokenFactory(address _mimeTokenFactory) external onlyOwner {
+        mimeTokenFactory = _mimeTokenFactory;
+        emit MimeTokenFactoryUpdated(_mimeTokenFactory);
+    }
+
+    /* *************************************************************************************************************************************/
     /* ** Creation Functions                                                                                                             ***/
     /* *************************************************************************************************************************************/
 
-    function createOsmoticPool(bytes memory _poolInitPayload) public whenNotPaused returns (address pool_) {
+    function createOsmoticPool(bytes calldata _poolInitPayload) public whenNotPaused returns (address pool_) {
         pool_ = address(new BeaconProxy(address(beacon), _poolInitPayload));
         isPool[pool_] = true;
 
@@ -96,46 +119,26 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
         emit ProjectListCreated(list_);
     }
 
-    function createMimeToken(string calldata name, string calldata symbol, bytes32 merkleRoot)
+    function createMimeToken(string calldata name, string calldata symbol, bytes32 merkleRoot, uint256 roundDuration)
         external
         whenNotPaused
-        returns (address)
+        returns (address token)
     {
-        MimeToken token = MimeTokenFactory(mimeTokenFactory).createMimeToken(name, symbol, merkleRoot);
-        token.transferOwnership(msg.sender);
-
-        return address(token);
-    }
-
-    function createPool(
-        string calldata name,
-        string calldata symbol,
-        bytes32 merkleRoot,
-        address fundingToken,
-        bool isPrivate,
-        OsmoticParams calldata params
-    ) external whenNotPaused returns (address pool_) {
-        MimeToken governanceToken = MimeTokenFactory(mimeTokenFactory).createMimeToken(name, symbol, merkleRoot);
-        governanceToken.transferOwnership(msg.sender);
-
-        address projectList;
-        if (isPrivate) {
-            projectList = createProjectList(name);
-        } else {
-            projectList = projectRegistry;
-        }
-
         bytes memory initCall =
-            abi.encodeCall(OsmoticPool.initialize, (fundingToken, address(governanceToken), projectList, params));
+            abi.encodeCall(MimeToken.initialize, (name, symbol, merkleRoot, deploymentTimestamp, roundDuration));
 
-        pool_ = createOsmoticPool(initCall);
+        token = MimeTokenFactory(mimeTokenFactory).createMimeToken(initCall);
+
+        MimeToken(token).transferOwnership(msg.sender);
+
+        isToken[token] = true;
     }
 
     /* *************************************************************************************************************************************/
     /* ** View Functions                                                                                                                 ***/
     /* *************************************************************************************************************************************/
 
-    function isToken(address _token) external view returns (bool) {
-        return MimeTokenFactory(mimeTokenFactory).isMimeToken(_token);
+    function isTokenAllowed(address _token) external view returns (bool) {
+        return MimeTokenFactory(mimeTokenFactory).isMimeToken(_token) || isToken[_token];
     }
 }

@@ -18,4 +18,4 @@
 [submodule "lib/mime-token"]
 	path = lib/mime-token
 	url = https://github.com/BlossomLabs/mime-token
-	branch = initial-implementation
+	branch = refactor-mime
