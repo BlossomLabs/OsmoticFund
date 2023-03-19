@@ -97,7 +97,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
             revert InvalidProjectList();
         }
 
-        if (OsmoticController(controller).isToken(_governanceToken)) {
+        if (OsmoticController(controller).isTokenAllowed(_governanceToken)) {
             governanceToken = _governanceToken;
         } else {
             revert InvalidGovernanceToken();

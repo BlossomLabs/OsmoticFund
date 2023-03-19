@@ -68,21 +68,19 @@ contract BaseSetup is SetupScript {
         mimeTokenFactory = MimeTokenFactory(mimeTokenFactoryAddress);
 
         // deploy registry
-        (address registryProxy, address registryImplementationAddress) =
-            setUpContracts(abi.encode(uint256(1)), "ProjectRegistry", abi.encodeCall(ProjectRegistry.initialize, ()));
-        registryImplementation = registryImplementationAddress;
+        bytes memory constructorArgs = abi.encode(uint256(1));
+        registryImplementation = setUpContract("ProjectRegistry", constructorArgs);
+        address registryProxy = setUpProxy(registryImplementation, abi.encodeCall(ProjectRegistry.initialize, ()));
         registry = ProjectRegistry(registryProxy);
 
         // deploy controller
         // We create a dummy contract to be used as the init beacon implementation
         Dummy dummy = new Dummy();
-        (address proxy, address controllerImplementationAddress) = setUpContracts(
-            abi.encode(uint256(1), address(dummy), address(registry), address(mimeTokenFactory)),
-            "OsmoticController",
-            abi.encodeCall(OsmoticController.initialize, ())
-        );
-        controllerImplementation = controllerImplementationAddress;
-        controller = OsmoticController(proxy);
+
+        constructorArgs = abi.encode(uint256(1), address(dummy), address(registry), address(mimeTokenFactory));
+        controllerImplementation = setUpContract("OsmoticController", constructorArgs);
+        address controllerProxy = setUpProxy(controllerImplementation, abi.encodeCall(OsmoticController.initialize, ()));
+        controller = OsmoticController(controllerProxy);
 
         // now that we have the controller proxy we upgrade the beacon implementation to OsmoticPool
         osmoticPoolImplementation = setUpContract("OsmoticPool", abi.encode(address(cfaForwarder), address(controller)));

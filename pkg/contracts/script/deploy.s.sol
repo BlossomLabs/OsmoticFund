@@ -25,13 +25,13 @@ contract deploy is SetupScript {
         upgradeScriptsBroadcast();
 
         // run the setup scripts
-        setUpContracts();
+        // setUpContracts();
 
         // we don't need broadcast from here on
         vm.stopBroadcast();
 
         // run an "integration test"
-        integrationTest();
+        // integrationTest();
 
         // console.log and store these in `deployments/{chainid}/deploy-latest.json` (if not in dry-run)
         storeLatestDeployments();

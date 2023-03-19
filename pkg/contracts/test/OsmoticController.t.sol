@@ -5,6 +5,8 @@ import "forge-std/Test.sol";
 
 import {UpgradeableBeacon} from "@oz/proxy/beacon/UpgradeableBeacon.sol";
 
+import {MimeToken} from "mime-token/MimeTokenFactory.sol";
+
 import {InvalidProjectList, OsmoticPool, OsmoticParams} from "../src/OsmoticPool.sol";
 
 import {IProjectList} from "../src/interfaces/IProjectList.sol";
@@ -50,7 +52,7 @@ contract OsmoticControllerTest is Test, BaseSetup {
         assertEq(controller.osmoticPoolImplementation(), newImplementation, "poolImplementation mismatch");
     }
 
-    function testCreatePool() public {
+    function testCreateOsmoticPool() public {
         assertEq(controller.isPool(address(pool)), true, "pool is not registered");
     }
 
@@ -82,5 +84,44 @@ contract OsmoticControllerTest is Test, BaseSetup {
         address newPool = controller.createOsmoticPool(initCall);
 
         assertEq(controller.isPool(newPool), true, "pool is not registered");
+    }
+
+    function testCreateMimeToken() public {
+        bytes memory initCall = abi.encodeCall(
+            MimeToken.initialize,
+            (
+                "Mime Token",
+                "MIME",
+                0xdefa96435aec82d201dbd2e5f050fb4e1fef5edac90ce1e03953f916a5e1132d,
+                block.timestamp,
+                1
+            )
+        );
+        MimeToken newToken = MimeToken(controller.createMimeToken(initCall));
+
+        assertEq(controller.isToken(address(newToken)), true, "token is not registered");
+        assertEq(newToken.owner(), deployer, "token owner mismatch");
+    }
+
+    function testCreatePool() public {
+        bytes memory governanceTokenInitCall = abi.encodeCall(
+            MimeToken.initialize,
+            (
+                "Mime Token",
+                "MIME",
+                0xdefa96435aec82d201dbd2e5f050fb4e1fef5edac90ce1e03953f916a5e1132d,
+                block.timestamp,
+                1
+            )
+        );
+
+        IProjectList newList = IProjectList(controller.createProjectList("New list"));
+
+        (address newToken, address newPool) =
+            controller.createPool(address(fundingToken), address(newList), governanceTokenInitCall, params);
+
+        assertEq(controller.isPool(newPool), true, "pool is not registered");
+        assertEq(controller.isToken(newToken), true, "token is not registered");
+        assertEq(MimeToken(newToken).owner(), deployer, "token owner mismatch");
     }
 }

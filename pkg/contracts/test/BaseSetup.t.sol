@@ -20,15 +20,16 @@ contract BaseSetupTest is Test, BaseSetup {
         // controller
         assertEq(controller.version(), 1, "Controller: version mismatch");
         assertEq(controller.owner(), deployer, "Controller: owner mismatch");
+        assertEq(controller.mimeTokenFactory(), address(mimeTokenFactory), "Controller: mime token factory mismatch");
+        assertEq(controller.projectRegistry(), address(registry), "Controller: project registry mismatch");
         assertEq(controller.implementation(), controllerImplementation, "Controller: implementation mismatch");
         assertEq(
             controller.osmoticPoolImplementation(),
             osmoticPoolImplementation,
             "Controller: pool implementation mismatch"
         );
-        assertEq(controller.projectRegistry(), address(registry), "Controller: project registry mismatch");
-        assertEq(controller.isList(address(registry)), true, "Controller: registry not set as default list");
         assertEq(controller.isTokenAllowed(address(governanceToken)), true, "Controller: governance token not mime");
+        assertEq(controller.isList(address(registry)), true, "Controller: registry not set as default list");
 
         // token
         assertEq(governanceToken.owner(), address(deployer), "Token: owner mismatch");

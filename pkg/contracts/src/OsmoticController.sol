@@ -18,10 +18,9 @@ import {OsmoticPool, OsmoticParams} from "./OsmoticPool.sol";
 contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgradeable, UUPSUpgradeable {
     uint256 public immutable version;
     uint256 public immutable deploymentTimestamp;
+    address public immutable projectRegistry;
+    address public immutable mimeTokenFactory;
     UpgradeableBeacon public immutable beacon;
-
-    address public projectRegistry;
-    address public mimeTokenFactory;
 
     mapping(address => bool) public isPool;
     mapping(address => bool) public isList;
@@ -33,8 +32,6 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
 
     event OsmoticPoolCreated(address indexed pool);
     event ProjectListCreated(address indexed list);
-    event ProjectRegistryUpdated(address indexed projectRegistry);
-    event MimeTokenFactoryUpdated(address indexed mimeTokenFactory);
 
     constructor(uint256 _version, address _osmoticPool, address _projectRegistry, address _mimeTokenFactory) {
         _disableInitializers();
@@ -47,9 +44,6 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
         deploymentTimestamp = block.timestamp;
         projectRegistry = _projectRegistry;
         mimeTokenFactory = _mimeTokenFactory;
-
-        emit ProjectRegistryUpdated(_projectRegistry);
-        emit MimeTokenFactoryUpdated(_mimeTokenFactory);
     }
 
     function initialize() public initializer {
@@ -88,25 +82,22 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     /* *************************************************************************************************************************************/
-    /* ** Setter Functions                                                                                                               ***/
-    /* *************************************************************************************************************************************/
-
-    function setProjectRegistry(address _projectRegistry) external onlyOwner {
-        projectRegistry = _projectRegistry;
-        emit ProjectRegistryUpdated(_projectRegistry);
-    }
-
-    function setMimeTokenFactory(address _mimeTokenFactory) external onlyOwner {
-        mimeTokenFactory = _mimeTokenFactory;
-        emit MimeTokenFactoryUpdated(_mimeTokenFactory);
-    }
-
-    /* *************************************************************************************************************************************/
     /* ** Creation Functions                                                                                                             ***/
     /* *************************************************************************************************************************************/
+    function createPool(
+        address _fundingToken,
+        address _projectList,
+        bytes calldata _governanceTokenInitPayload,
+        OsmoticParams calldata _params
+    ) external whenNotPaused returns (address token_, address pool_) {
+        token_ = createMimeToken(_governanceTokenInitPayload);
 
-    function createOsmoticPool(bytes calldata _poolInitPayload) public whenNotPaused returns (address pool_) {
-        pool_ = address(new BeaconProxy(address(beacon), _poolInitPayload));
+        bytes memory initCall = abi.encodeCall(OsmoticPool.initialize, (_fundingToken, token_, _projectList, _params));
+        pool_ = createOsmoticPool(initCall);
+    }
+
+    function createOsmoticPool(bytes memory _initPayload) public whenNotPaused returns (address pool_) {
+        pool_ = address(new BeaconProxy(address(beacon), _initPayload));
         isPool[pool_] = true;
 
         emit OsmoticPoolCreated(pool_);
@@ -119,19 +110,12 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
         emit ProjectListCreated(list_);
     }
 
-    function createMimeToken(string calldata name, string calldata symbol, bytes32 merkleRoot, uint256 roundDuration)
-        external
-        whenNotPaused
-        returns (address token)
-    {
-        bytes memory initCall =
-            abi.encodeCall(MimeToken.initialize, (name, symbol, merkleRoot, deploymentTimestamp, roundDuration));
+    function createMimeToken(bytes calldata _initPayload) public whenNotPaused returns (address token_) {
+        // We avoid emitting the creation event as it is already emitted by the MimeTokenFactory
+        token_ = MimeTokenFactory(mimeTokenFactory).createMimeToken(_initPayload);
+        MimeToken(token_).transferOwnership(msg.sender);
 
-        token = MimeTokenFactory(mimeTokenFactory).createMimeToken(initCall);
-
-        MimeToken(token).transferOwnership(msg.sender);
-
-        isToken[token] = true;
+        isToken[token_] = true;
     }
 
     /* *************************************************************************************************************************************/
@@ -139,6 +123,6 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
     /* *************************************************************************************************************************************/
 
     function isTokenAllowed(address _token) external view returns (bool) {
-        return MimeTokenFactory(mimeTokenFactory).isMimeToken(_token) || isToken[_token];
+        return isToken[_token] || MimeTokenFactory(mimeTokenFactory).isMimeToken(_token);
     }
 }
