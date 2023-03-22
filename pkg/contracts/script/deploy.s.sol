@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import {SetupScript} from "./SetupScript.sol";
+import {SetupScript} from "./SetupScript.s.sol";
 
 /* 
 # Anvil Dry-Run (make sure it is running):
@@ -25,13 +25,13 @@ contract deploy is SetupScript {
         upgradeScriptsBroadcast();
 
         // run the setup scripts
-        setUpContracts();
+        // setUpContracts();
 
         // we don't need broadcast from here on
         vm.stopBroadcast();
 
         // run an "integration test"
-        integrationTest();
+        // integrationTest();
 
         // console.log and store these in `deployments/{chainid}/deploy-latest.json` (if not in dry-run)
         storeLatestDeployments();

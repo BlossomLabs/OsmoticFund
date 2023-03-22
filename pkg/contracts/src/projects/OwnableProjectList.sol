@@ -34,9 +34,7 @@ contract OwnableProjectList is Ownable, IProjectList {
         }
     }
 
-    constructor(address _projectRegistry, address _owner, string memory _name) {
-        transferOwnership(_owner);
-
+    constructor(address _projectRegistry, string memory _name) {
         projectRegistry = ProjectRegistry(_projectRegistry);
         name = _name;
     }

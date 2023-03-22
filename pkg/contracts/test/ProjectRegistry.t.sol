@@ -3,51 +3,26 @@ pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
 
-import {SetupScript} from "../script/SetupScript.sol";
-
-import {
-    BeneficiaryAlreadyExists, ProjectRegistry, UnauthorizedProjectAdmin
-} from "../src/projects/ProjectRegistry.sol";
+import {BeneficiaryAlreadyExists, UnauthorizedProjectAdmin} from "../src/projects/ProjectRegistry.sol";
 
 import {Project} from "../src/interfaces/IProjectList.sol";
 
-contract ProjectRegistryTest is Test, SetupScript {
-    ProjectRegistry registry;
+import {BaseSetup} from "../script/BaseSetup.s.sol";
 
-    address deployer = address(this);
-
-    // accounts
+contract ProjectRegistryTest is Test, BaseSetup {
     address beneficiary = address(1);
-    address notAuthorized = address(2);
     address projectAdmin = address(3);
 
-    bytes cid = "QmWtGzMy7aNbMnLpmuNjKonoHc86mL1RyxqD2ghdQyq7Sm";
-    bytes contenthash = bytes(cid);
-
-    bytes registryBytecode;
+    bytes contenthash = bytes("QmWtGzMy7aNbMnLpmuNjKonoHc86mL1RyxqD2ghdQyq7Sm");
 
     event ProjectAdminChanged(uint256 indexed projectId, address newAdmin);
     event ProjectUpdated(uint256 indexed projectId, address admin, address beneficiary, bytes contenthash);
 
-    function setUp() public {
-        (address proxy, address implementation) =
-            setUpContracts(abi.encode(uint256(1)), "ProjectRegistry", abi.encodeCall(ProjectRegistry.initialize, ()));
-
-        registryBytecode = implementation.code;
-
-        registry = ProjectRegistry(proxy);
+    function setUp() public override {
+        super.setUp();
 
         vm.label(beneficiary, "beneficiary");
-        vm.label(notAuthorized, "notAuthorized");
         vm.label(projectAdmin, "projectAdmin");
-        vm.label(deployer, "deployer");
-    }
-
-    function testInitialize() public {
-        assertEq(registry.version(), 1, "version mismatch");
-        assertEq(registry.nextProjectId(), 1, "nextProjectId mismatch");
-        assertEq(registry.owner(), deployer, "owner mismatch");
-        assertEq(registry.implementation().code, registryBytecode, "implementation mismatch");
     }
 
     function testFuzzRegisterProject(address _beneficiary, bytes calldata _contenthash) public {

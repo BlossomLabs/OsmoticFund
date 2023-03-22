@@ -3,9 +3,6 @@ pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
 
-import {SetupScript} from "../script/SetupScript.sol";
-
-import {ProjectRegistry} from "../src/projects/ProjectRegistry.sol";
 import {
     OwnableProjectList,
     ProjectAlreadyInList,
@@ -15,59 +12,41 @@ import {
 
 import {Project} from "../src/interfaces/IProjectList.sol";
 
-contract OwnableProjectListTest is Test, SetupScript {
-    ProjectRegistry registry;
+import {BaseSetup} from "../script/BaseSetup.s.sol";
+
+contract OwnableProjectListTest is Test, BaseSetup {
     OwnableProjectList ownedList;
 
-    address deployer = address(this);
-
-    // account
     address beneficiary1 = address(1);
     address beneficiary2 = address(2);
-    address beneficiary3 = address(3);
-    address notAuthorized = address(4);
-    address projectAdmin = address(5);
-    address listOwner = address(5);
+    address listOwner = address(3);
 
     uint256 projectId1;
     uint256 projectId2;
-    uint256 projectId3;
-    uint256 projectIdNotInRegistry = 4;
+    uint256 projectIdNotInRegistry = 3;
 
     uint256[] projectIds;
 
     string listName = "listName";
-
-    bytes cid = "QmWtGzMy7aNbMnLpmuNjKonoHc86mL1RyxqD2ghdQyq7Sm";
-    bytes contenthash = bytes(cid);
+    bytes contenthash = bytes("QmWtGzMy7aNbMnLpmuNjKonoHc86mL1RyxqD2ghdQyq7Sm");
 
     event ListUpdated(uint256 indexed projectId, bool included);
 
-    function setUp() public {
-        (address proxy,) =
-            setUpContracts(abi.encode(uint256(1)), "ProjectRegistry", abi.encodeCall(ProjectRegistry.initialize, ()));
+    function setUp() public override {
+        super.setUp();
 
-        registry = ProjectRegistry(proxy);
-
-        vm.startPrank(projectAdmin);
         projectId1 = registry.registrerProject(beneficiary1, contenthash);
         projectId2 = registry.registrerProject(beneficiary2, contenthash);
-        projectId3 = registry.registrerProject(beneficiary3, contenthash);
-        vm.stopPrank();
 
         projectIds.push(projectId1);
         projectIds.push(projectId2);
 
         vm.prank(listOwner);
-        ownedList = new OwnableProjectList(address(registry), listOwner, listName);
+        ownedList = new OwnableProjectList(address(registry), listName);
 
         vm.label(beneficiary1, "beneficiary1");
         vm.label(beneficiary2, "beneficiary2");
-        vm.label(beneficiary3, "beneficiary3");
-        vm.label(notAuthorized, "notAuthorized");
-        vm.label(projectAdmin, "projectAdmin");
         vm.label(listOwner, "listOwner");
-        vm.label(deployer, "deployer");
     }
 
     function testAddProject() public {
@@ -145,7 +124,7 @@ contract OwnableProjectListTest is Test, SetupScript {
 
         Project memory project = ownedList.getProject(projectId1);
 
-        assertEq(project.admin, projectAdmin, "admin mismatch");
+        assertEq(project.admin, deployer, "admin mismatch");
         assertEq(project.beneficiary, beneficiary1, "beneficiary mismatch");
         assertEq(project.contenthash, contenthash, "contenthash mismatch");
     }

@@ -6,36 +6,27 @@ import {PausableUpgradeable} from "@oz-upgradeable/security/PausableUpgradeable.
 import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@oz-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-import {IERC20} from "@oz/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
 import {BeaconProxy} from "@oz/proxy/beacon/BeaconProxy.sol";
 import {UpgradeableBeacon} from "@oz/proxy/beacon/UpgradeableBeacon.sol";
 
-import {IStakingFactory} from "./interfaces/IStakingFactory.sol";
-import {ILockManager} from "./interfaces/ILockManager.sol";
-import {IStaking} from "./interfaces/IStaking.sol";
+import {MimeToken, MimeTokenFactory} from "mime-token/MimeTokenFactory.sol";
 
 import {OwnableProjectList} from "./projects/OwnableProjectList.sol";
 
-import {OsmoticPool, ParticipantSupportUpdate} from "./OsmoticPool.sol";
+import {OsmoticPool, OsmoticParams} from "./OsmoticPool.sol";
 
-error NotOsmoticPool();
-
-contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgradeable, UUPSUpgradeable, ILockManager {
-    using SafeERC20 for IERC20;
-
-    UpgradeableBeacon internal immutable beacon;
-
+contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgradeable, UUPSUpgradeable {
     uint256 public immutable version;
-
+    uint256 public immutable claimTimestamp;
     address public immutable projectRegistry;
+    address public immutable mimeTokenFactory;
+    UpgradeableBeacon public immutable beacon;
 
-    IStakingFactory public immutable stakingFactory; // For finding each collateral token's staking pool and locking/unlocking tokens
+    uint256 public claimDuration;
 
     mapping(address => bool) public isPool;
     mapping(address => bool) public isList;
-
-    mapping(address => uint256) internal participantSupportedPools; // Amount of pools supported by a participant
+    mapping(address => bool) public isToken;
 
     /* *************************************************************************************************************************************/
     /* ** Events                                                                                                                         ***/
@@ -43,39 +34,28 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
 
     event OsmoticPoolCreated(address indexed pool);
     event ProjectListCreated(address indexed list);
-    event ParticipantSupportedPoolsChanged(address indexed participant, uint256 supportedPools);
 
-    /* *************************************************************************************************************************************/
-    /* ** Modifiers                                                                                                                      ***/
-    /* *************************************************************************************************************************************/
-
-    modifier onlyPool(address _pool) {
-        if (!isPool[_pool]) {
-            revert NotOsmoticPool();
-        }
-
-        _;
-    }
-
-    constructor(
-        uint256 _version,
-        address _osmoticPoolImplementation,
-        address _projectRegistry,
-        IStakingFactory _stakingFactory
-    ) {
+    constructor(uint256 _version, address _osmoticPool, address _projectRegistry, address _mimeTokenFactory) {
         _disableInitializers();
 
-        beacon = new UpgradeableBeacon(_osmoticPoolImplementation);
+        beacon = new UpgradeableBeacon(_osmoticPool);
+        // We transfer the ownership of the beacon to the deployer
+        beacon.transferOwnership(msg.sender);
 
         version = _version;
+        claimTimestamp = block.timestamp;
         projectRegistry = _projectRegistry;
-        stakingFactory = _stakingFactory;
+        mimeTokenFactory = _mimeTokenFactory;
     }
 
-    function initialize() public initializer {
+    function initialize(uint256 _claimDuration) public initializer {
         __Pausable_init();
         __Ownable_init();
         __UUPSUpgradeable_init();
+
+        claimDuration = _claimDuration;
+        // We set the registry as the default list
+        isList[projectRegistry] = true;
     }
 
     /* *************************************************************************************************************************************/
@@ -104,145 +84,49 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    function updateOsmoticPool(address _newImplementation) external onlyOwner {
-        beacon.upgradeTo(_newImplementation);
+    /* *************************************************************************************************************************************/
+    /* ** Setter Functions                                                                                                               ***/
+    /* *************************************************************************************************************************************/
+
+    function setClaimDuration(uint256 _claimDuration) external onlyOwner {
+        claimDuration = _claimDuration;
     }
 
     /* *************************************************************************************************************************************/
-    /* ** Pool Creation Function                                                                                                       ***/
+    /* ** Creation Functions                                                                                                             ***/
     /* *************************************************************************************************************************************/
 
-    function createOsmoticPool(bytes calldata _poolInitPayload) external whenNotPaused returns (address pool_) {
-        pool_ = address(new BeaconProxy(address(beacon), _poolInitPayload));
-        isPool[pool_] = true;
+    function createProjectList(string calldata _name) external whenNotPaused returns (address list_) {
+        list_ = address(new OwnableProjectList(projectRegistry, _name));
 
-        emit OsmoticPoolCreated(pool_);
-    }
+        OwnableProjectList(list_).transferOwnership(msg.sender);
 
-    /* *************************************************************************************************************************************/
-    /* ** Project List Creation Function                                                                                                       ***/
-    /* *************************************************************************************************************************************/
-
-    function createProjectList(string calldata name) external whenNotPaused returns (address list_) {
-        list_ = address(new OwnableProjectList(projectRegistry, msg.sender, name));
         isList[list_] = true;
 
         emit ProjectListCreated(list_);
     }
 
-    /* *************************************************************************************************************************************/
-    /* ** Locking Functions                                                                                                              ***/
-    /* *************************************************************************************************************************************/
+    function createOsmoticPool(bytes calldata _initPayload) external whenNotPaused returns (address pool_) {
+        pool_ = address(new BeaconProxy(address(beacon), _initPayload));
 
-    function lockBalance(address _token, uint256 _amount) public whenNotPaused {
-        IStaking staking = IStaking(stakingFactory.getOrCreateInstance(_token));
+        OsmoticPool(pool_).transferOwnership(msg.sender);
 
-        _lockBalance(staking, msg.sender, _amount);
+        isPool[pool_] = true;
+
+        emit OsmoticPoolCreated(pool_);
     }
 
-    function unlockBalance(address _token, uint256 _amount) public whenNotPaused {
-        IStaking staking = IStaking(stakingFactory.getInstance(_token));
+    function createMimeToken(bytes calldata _initPayload) external whenNotPaused returns (address token_) {
+        // We avoid emitting the creation event as it is already emitted by the MimeTokenFactory
+        token_ = MimeTokenFactory(mimeTokenFactory).createMimeToken(_initPayload);
 
-        _unlockBalance(staking, msg.sender, _amount);
-    }
+        require(MimeToken(token_).timestamp() == claimTimestamp, "OsmoticController: Invalid timestamp for token");
+        require(
+            MimeToken(token_).roundDuration() == claimDuration, "OsmoticController: Invalid round duration for token"
+        );
 
-    /* *************************************************************************************************************************************/
-    /* ** Locking and Supporting Functions                                                                                               ***/
-    /* *************************************************************************************************************************************/
+        MimeToken(token_).transferOwnership(msg.sender);
 
-    function lockAndSupport(
-        OsmoticPool _pool,
-        uint256 _lockedAmount,
-        ParticipantSupportUpdate[] calldata _participantUpdates
-    ) external whenNotPaused {
-        lockBalance(address(_pool.governanceToken()), _lockedAmount);
-
-        _pool.updateProjectSupports(_participantUpdates);
-    }
-
-    function unsupportAndUnlock(
-        OsmoticPool _pool,
-        uint256 _unlockedAmount,
-        ParticipantSupportUpdate[] calldata _participantUpdates
-    ) external whenNotPaused {
-        _pool.updateProjectSupports(_participantUpdates);
-
-        unlockBalance(address(_pool.governanceToken()), _unlockedAmount);
-    }
-
-    /* *************************************************************************************************************************************/
-    /* ** Participant Supported Pools Functions                                                                                          ***/
-    /* *************************************************************************************************************************************/
-
-    function increaseParticipantSupportedPools(address _participant, address _pool)
-        external
-        whenNotPaused
-        onlyPool(_pool)
-    {
-        participantSupportedPools[_participant]++;
-
-        emit ParticipantSupportedPoolsChanged(_participant, participantSupportedPools[_participant]);
-    }
-
-    function decreaseParticipantSupportedPools(address _participant, address _pool)
-        external
-        whenNotPaused
-        onlyPool(_pool)
-    {
-        participantSupportedPools[_participant]--;
-
-        emit ParticipantSupportedPoolsChanged(_participant, participantSupportedPools[_participant]);
-    }
-
-    /* *************************************************************************************************************************************/
-    /* ** View Functions                                                                                                                 ***/
-    /* *************************************************************************************************************************************/
-
-    /**
-     * @dev ILockManager conformance.
-     *      The Staking contract checks this on each request to unlock an amount managed by this Controller.
-     *      Check the participant amount of supported pools and disable owners from unlocking their funds
-     *      arbitrarily, as we want to control the release of the locked amount  when there is no remaining
-     *      supported pools.
-     * @return Whether the request to unlock tokens of a given owner should be allowed
-     */
-    function canUnlock(address _user, uint256) external view returns (bool) {
-        return participantSupportedPools[_user] == 0;
-    }
-
-    function getParticipantStaking(address _participant, address _token) public view returns (uint256) {
-        return IStaking(stakingFactory.getInstance(_token)).lockedBalanceOf(_participant);
-    }
-
-    /* *************************************************************************************************************************************/
-    /* ** Internal Locking Functions                                                                                                     ***/
-    /* *************************************************************************************************************************************/
-
-    /**
-     * @dev Lock some tokens in the staking pool for a user
-     * @param _staking Staking pool for the ERC20 token to be locked
-     * @param _user Address of the user to lock tokens for
-     * @param _amount Amount of collateral tokens to be locked
-     */
-    function _lockBalance(IStaking _staking, address _user, uint256 _amount) internal {
-        if (_amount == 0) {
-            return;
-        }
-
-        _staking.lock(_user, _amount);
-    }
-
-    /**
-     * @dev Unlock some tokens in the staking pool for a user
-     * @param _staking Staking pool for the ERC20 token to be unlocked
-     * @param _user Address of the user to unlock tokens for
-     * @param _amount Amount of collateral tokens to be unlocked
-     */
-    function _unlockBalance(IStaking _staking, address _user, uint256 _amount) internal {
-        if (_amount == 0) {
-            return;
-        }
-
-        _staking.unlock(_user, address(this), _amount);
+        isToken[token_] = true;
     }
 }
