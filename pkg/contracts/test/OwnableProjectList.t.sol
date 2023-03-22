@@ -12,7 +12,7 @@ import {
 
 import {Project} from "../src/interfaces/IProjectList.sol";
 
-import {BaseSetup} from "../script/BaseSetup.sol";
+import {BaseSetup} from "../script/BaseSetup.s.sol";
 
 contract OwnableProjectListTest is Test, BaseSetup {
     OwnableProjectList ownedList;
@@ -42,7 +42,7 @@ contract OwnableProjectListTest is Test, BaseSetup {
         projectIds.push(projectId2);
 
         vm.prank(listOwner);
-        ownedList = new OwnableProjectList(address(registry), listOwner, listName);
+        ownedList = new OwnableProjectList(address(registry), listName);
 
         vm.label(beneficiary1, "beneficiary1");
         vm.label(beneficiary2, "beneficiary2");

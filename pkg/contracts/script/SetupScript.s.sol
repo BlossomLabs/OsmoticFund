@@ -29,13 +29,4 @@ contract SetupScript is UpgradeScripts {
     //         addr := create2(0, add(code, 0x20), mload(code), salt)
     //     }
     // }
-
-    function setUpContracts(bytes memory _constructorArgs, string memory _implementationName, bytes memory _initCall)
-        internal
-        returns (address, address)
-    {
-        address implementation = setUpContract(_implementationName, _constructorArgs);
-
-        return (setUpProxy(implementation, _initCall), implementation);
-    }
 }
