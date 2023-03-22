@@ -17,10 +17,12 @@ import {OsmoticPool, OsmoticParams} from "./OsmoticPool.sol";
 
 contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgradeable, UUPSUpgradeable {
     uint256 public immutable version;
-    uint256 public immutable deploymentTimestamp;
+    uint256 public immutable claimTimestamp;
     address public immutable projectRegistry;
     address public immutable mimeTokenFactory;
     UpgradeableBeacon public immutable beacon;
+
+    uint256 public claimDuration;
 
     mapping(address => bool) public isPool;
     mapping(address => bool) public isList;
@@ -41,16 +43,17 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
         beacon.transferOwnership(msg.sender);
 
         version = _version;
-        deploymentTimestamp = block.timestamp;
+        claimTimestamp = block.timestamp;
         projectRegistry = _projectRegistry;
         mimeTokenFactory = _mimeTokenFactory;
     }
 
-    function initialize() public initializer {
+    function initialize(uint256 _claimDuration) public initializer {
         __Pausable_init();
         __Ownable_init();
         __UUPSUpgradeable_init();
 
+        claimDuration = _claimDuration;
         // We set the registry as the default list
         isList[projectRegistry] = true;
     }
@@ -82,47 +85,48 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     /* *************************************************************************************************************************************/
+    /* ** Setter Functions                                                                                                               ***/
+    /* *************************************************************************************************************************************/
+
+    function setClaimDuration(uint256 _claimDuration) external onlyOwner {
+        claimDuration = _claimDuration;
+    }
+
+    /* *************************************************************************************************************************************/
     /* ** Creation Functions                                                                                                             ***/
     /* *************************************************************************************************************************************/
-    function createPool(
-        address _fundingToken,
-        address _projectList,
-        bytes calldata _governanceTokenInitPayload,
-        OsmoticParams calldata _params
-    ) external whenNotPaused returns (address token_, address pool_) {
-        token_ = createMimeToken(_governanceTokenInitPayload);
 
-        bytes memory initCall = abi.encodeCall(OsmoticPool.initialize, (_fundingToken, token_, _projectList, _params));
-        pool_ = createOsmoticPool(initCall);
-    }
+    function createProjectList(string calldata _name) external whenNotPaused returns (address list_) {
+        list_ = address(new OwnableProjectList(projectRegistry, _name));
 
-    function createOsmoticPool(bytes memory _initPayload) public whenNotPaused returns (address pool_) {
-        pool_ = address(new BeaconProxy(address(beacon), _initPayload));
-        isPool[pool_] = true;
+        OwnableProjectList(list_).transferOwnership(msg.sender);
 
-        emit OsmoticPoolCreated(pool_);
-    }
-
-    function createProjectList(string calldata name) public whenNotPaused returns (address list_) {
-        list_ = address(new OwnableProjectList(projectRegistry, msg.sender, name));
         isList[list_] = true;
 
         emit ProjectListCreated(list_);
     }
 
-    function createMimeToken(bytes calldata _initPayload) public whenNotPaused returns (address token_) {
+    function createOsmoticPool(bytes calldata _initPayload) external whenNotPaused returns (address pool_) {
+        pool_ = address(new BeaconProxy(address(beacon), _initPayload));
+
+        OsmoticPool(pool_).transferOwnership(msg.sender);
+
+        isPool[pool_] = true;
+
+        emit OsmoticPoolCreated(pool_);
+    }
+
+    function createMimeToken(bytes calldata _initPayload) external whenNotPaused returns (address token_) {
         // We avoid emitting the creation event as it is already emitted by the MimeTokenFactory
         token_ = MimeTokenFactory(mimeTokenFactory).createMimeToken(_initPayload);
+
+        require(MimeToken(token_).timestamp() == claimTimestamp, "OsmoticController: Invalid timestamp for token");
+        require(
+            MimeToken(token_).roundDuration() == claimDuration, "OsmoticController: Invalid round duration for token"
+        );
+
         MimeToken(token_).transferOwnership(msg.sender);
 
         isToken[token_] = true;
-    }
-
-    /* *************************************************************************************************************************************/
-    /* ** View Functions                                                                                                                 ***/
-    /* *************************************************************************************************************************************/
-
-    function isTokenAllowed(address _token) external view returns (bool) {
-        return isToken[_token] || MimeTokenFactory(mimeTokenFactory).isMimeToken(_token);
     }
 }

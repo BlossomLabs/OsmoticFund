@@ -13,7 +13,7 @@ import {OsmoticFormula, OsmoticParams} from "./OsmoticFormula.sol";
 import {OsmoticController} from "./OsmoticController.sol";
 
 error InvalidProjectList();
-error InvalidGovernanceToken();
+error InvalidMimeToken();
 error SupportUnderflow();
 error ProjectAlreadyActive(uint256 projectId);
 error ProjectNeedsMoreStake(uint256 projectId, uint256 requiredStake, uint256 currentStake);
@@ -50,7 +50,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
 
     address public projectList;
     address public fundingToken;
-    address public governanceToken;
+    address public mimeToken;
 
     OsmoticParams public osmoticParams;
 
@@ -80,12 +80,10 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         require((controller = _controller) != address(0), "Zero Controller");
     }
 
-    function initialize(
-        address _fundingToken,
-        address _governanceToken,
-        address _projectList,
-        OsmoticParams calldata _params
-    ) public initializer {
+    function initialize(address _fundingToken, address _mimeToken, address _projectList, OsmoticParams calldata _params)
+        public
+        initializer
+    {
         __Ownable_init();
         __OsmoticFormula_init(_params);
 
@@ -97,10 +95,10 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
             revert InvalidProjectList();
         }
 
-        if (OsmoticController(controller).isTokenAllowed(_governanceToken)) {
-            governanceToken = _governanceToken;
+        if (OsmoticController(controller).isToken(_mimeToken)) {
+            mimeToken = _mimeToken;
         } else {
-            revert InvalidGovernanceToken();
+            revert InvalidMimeToken();
         }
     }
 
@@ -150,7 +148,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     /* *************************************************************************************************************************************/
 
     function supportProjects(ProjectSupport[] calldata _projectSupports) public {
-        uint256 participantBalance = IMimeToken(governanceToken).balanceOf(msg.sender);
+        uint256 participantBalance = IMimeToken(mimeToken).balanceOf(msg.sender);
         require(participantBalance > 0, "NO_BALANCE_AVAILABLE");
 
         int256 deltaSupportSum = 0;
@@ -190,7 +188,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         bytes32[] calldata merkleProof,
         ProjectSupport[] calldata _projectSupports
     ) external {
-        IMimeToken(governanceToken).claim(index, account, amount, merkleProof);
+        IMimeToken(mimeToken).claim(index, account, amount, merkleProof);
         supportProjects(_projectSupports);
     }
 
@@ -268,7 +266,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     /* *************************************************************************************************************************************/
 
     function round() public view returns (uint256) {
-        return IMimeToken(governanceToken).round();
+        return IMimeToken(mimeToken).round();
     }
 
     function projectSupport(uint256 _projectId) public view returns (uint256) {

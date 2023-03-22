@@ -22,22 +22,32 @@ contract BaseSetupTest is Test, BaseSetup {
         assertEq(controller.owner(), deployer, "Controller: owner mismatch");
         assertEq(controller.mimeTokenFactory(), address(mimeTokenFactory), "Controller: mime token factory mismatch");
         assertEq(controller.projectRegistry(), address(registry), "Controller: project registry mismatch");
+        assertEq(controller.claimDuration(), roundDuration, "Controller: claim duration mismatch");
         assertEq(controller.implementation(), controllerImplementation, "Controller: implementation mismatch");
         assertEq(
             controller.osmoticPoolImplementation(),
             osmoticPoolImplementation,
             "Controller: pool implementation mismatch"
         );
-        assertEq(controller.isTokenAllowed(address(governanceToken)), true, "Controller: governance token not mime");
         assertEq(controller.isList(address(registry)), true, "Controller: registry not set as default list");
+        assertEq(controller.isToken(address(mimeToken)), true, "Controller: governance token not mime");
+        assertEq(controller.isPool(address(pool)), true, "Controller: pool is not registered");
 
         // token
-        assertEq(governanceToken.owner(), address(deployer), "Token: owner mismatch");
-        assertEq(governanceToken.name(), "Osmotic Fund", "Token: name mismatch");
-        assertEq(governanceToken.symbol(), "OF", "Token: symbol mismatch");
-        assertEq(governanceToken.decimals(), 18, "Token: decimals mismatch");
-        assertEq(governanceToken.merkleRoot(), merkleRoot, "Token: merkle root mismatch");
-        assertEq(governanceToken.timestamp(), timestamp, "Token: timestamp mismatch");
-        assertEq(governanceToken.roundDuration(), roundDuration, "Token: round duration mismatch");
+        assertEq(mimeToken.owner(), deployer, "Token: owner mismatch");
+        assertEq(mimeToken.name(), "Osmotic Fund", "Token: name mismatch");
+        assertEq(mimeToken.symbol(), "OF", "Token: symbol mismatch");
+        assertEq(mimeToken.decimals(), 18, "Token: decimals mismatch");
+        assertEq(mimeToken.merkleRoot(), merkleRoot, "Token: merkle root mismatch");
+        assertEq(mimeToken.timestamp(), controller.claimTimestamp(), "Token: timestamp mismatch");
+        assertEq(mimeToken.roundDuration(), controller.claimDuration(), "Token: round duration mismatch");
+
+        // pool
+        assertEq(pool.owner(), deployer, "Pool: owner mismatch");
+        assertEq(pool.controller(), address(controller), "Pool: controller mismatch");
+        assertEq(pool.cfaForwarder(), cfaV1ForwarderAddress, "Pool: cfa forwarder mismatch");
+        assertEq(pool.fundingToken(), address(fundingToken), "Pool: funding token mismatch");
+        assertEq(pool.mimeToken(), address(mimeToken), "Pool: governance token mismatch");
+        assertEq(pool.projectList(), address(registry), "Pool: project list mismatch");
     }
 }

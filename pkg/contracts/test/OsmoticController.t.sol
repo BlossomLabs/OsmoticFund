@@ -7,15 +7,13 @@ import {UpgradeableBeacon} from "@oz/proxy/beacon/UpgradeableBeacon.sol";
 
 import {MimeToken} from "mime-token/MimeTokenFactory.sol";
 
-import {InvalidProjectList, OsmoticPool, OsmoticParams} from "../src/OsmoticPool.sol";
-
-import {IProjectList} from "../src/interfaces/IProjectList.sol";
+import {InvalidProjectList, InvalidMimeToken, OsmoticPool, OsmoticParams} from "../src/OsmoticPool.sol";
+import {OwnableProjectList} from "../src/projects/OwnableProjectList.sol";
 
 import {BaseSetup} from "../script/BaseSetup.s.sol";
 
 contract OsmoticControllerTest is Test, BaseSetup {
-    OsmoticPool pool;
-    OsmoticParams params;
+    address owner = address(1);
 
     event OsmoticPoolCreated(address indexed pool);
     event ProjectListCreated(address indexed list);
@@ -23,14 +21,6 @@ contract OsmoticControllerTest is Test, BaseSetup {
 
     function setUp() public override {
         super.setUp();
-
-        params = OsmoticParams({decay: 1, drop: 2, maxFlow: 3, minStakeRatio: 4});
-
-        bytes memory initCall = abi.encodeCall(
-            OsmoticPool.initialize, (address(fundingToken), address(governanceToken), address(registry), params)
-        );
-
-        pool = OsmoticPool(controller.createOsmoticPool(initCall));
     }
 
     function testPause() public {
@@ -44,28 +34,43 @@ contract OsmoticControllerTest is Test, BaseSetup {
         assertTrue(!controller.paused(), "paused mismatch");
     }
 
+    function testCallWhenPaused() public {
+        controller.pause();
+
+        vm.expectRevert("Pausable: paused");
+
+        controller.createProjectList("New list");
+    }
+
     function testUpdateOsmoticPoolImplementation() public {
         address newImplementation = setUpContract("OsmoticPool", abi.encode(address(12), address(13)));
-        UpgradeableBeacon beacon = UpgradeableBeacon(controller.beacon());
-        beacon.upgradeTo(newImplementation);
+        UpgradeableBeacon(controller.beacon()).upgradeTo(newImplementation);
 
         assertEq(controller.osmoticPoolImplementation(), newImplementation, "poolImplementation mismatch");
     }
 
-    function testCreateOsmoticPool() public {
-        assertEq(controller.isPool(address(pool)), true, "pool is not registered");
+    function testUpdateOsmoticPoolImplementationWithNotOwner() public {
+        address newImplementation = setUpContract("OsmoticPool", abi.encode(address(12), address(13)));
+
+        vm.expectRevert("Ownable: caller is not the owner");
+
+        vm.prank(notAuthorized);
+        UpgradeableBeacon(controller.beacon()).upgradeTo(newImplementation);
     }
 
-    function testCreatePoolWithListNotRegistered() public {
-        IProjectList projectList = IProjectList(address(20));
+    function testSetClaimDuration() public {
+        assertEq(controller.claimDuration(), roundDuration, "claimDuration mismatch");
 
-        bytes memory initCall = abi.encodeCall(
-            OsmoticPool.initialize, (address(fundingToken), address(governanceToken), address(projectList), params)
-        );
+        uint256 newDuration = 2 weeks;
+        controller.setClaimDuration(newDuration);
+        assertEq(controller.claimDuration(), newDuration, "claimDuration mismatch");
+    }
 
-        vm.expectRevert(abi.encodeWithSelector(InvalidProjectList.selector));
+    function testSetClaimDurationWithNotOwner() public {
+        vm.expectRevert("Ownable: caller is not the owner");
 
-        controller.createOsmoticPool(initCall);
+        vm.prank(notAuthorized);
+        controller.setClaimDuration(2 weeks);
     }
 
     function testCreateOwnedList() public {
@@ -74,16 +79,58 @@ contract OsmoticControllerTest is Test, BaseSetup {
         assertEq(controller.isList(newList), true, "new list is not registered");
     }
 
-    function testCreatePoolWithOwnedList() public {
-        IProjectList newList = IProjectList(controller.createProjectList("New list"));
-
-        bytes memory initCall = abi.encodeCall(
-            OsmoticPool.initialize, (address(fundingToken), address(governanceToken), address(newList), params)
+    function testCreateOsmoticPool() public {
+        bytes memory poolInitCall = abi.encodeCall(
+            OsmoticPool.initialize, (address(fundingToken), address(mimeToken), address(registry), params)
         );
 
-        address newPool = controller.createOsmoticPool(initCall);
+        vm.prank(owner);
+        OsmoticPool newPool = OsmoticPool(controller.createOsmoticPool(poolInitCall));
 
-        assertEq(controller.isPool(newPool), true, "pool is not registered");
+        assertEq(newPool.owner(), owner, "Pool: owner mismatch");
+        assertEq(controller.isPool(address(newPool)), true, "pool is not registered");
+    }
+
+    function testCreatePoolWithOwnedList() public {
+        vm.prank(owner);
+        OwnableProjectList newList = OwnableProjectList(controller.createProjectList("New list"));
+
+        bytes memory initCall = abi.encodeCall(
+            OsmoticPool.initialize, (address(fundingToken), address(mimeToken), address(newList), params)
+        );
+
+        vm.prank(owner);
+        OsmoticPool newPool = OsmoticPool(controller.createOsmoticPool(initCall));
+
+        assertEq(newList.owner(), owner, "List: owner mismatch");
+        assertEq(controller.isList(address(newList)), true, "list is not registered");
+        assertEq(newPool.owner(), owner, "Pool: owner mismatch");
+        assertEq(controller.isPool(address(newPool)), true, "pool is not registered");
+    }
+
+    function testCreateOsmoticPoolWithListNotRegistered() public {
+        OwnableProjectList projectList = OwnableProjectList(address(20));
+
+        bytes memory initCall = abi.encodeCall(
+            OsmoticPool.initialize, (address(fundingToken), address(mimeToken), address(projectList), params)
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidProjectList.selector));
+
+        controller.createOsmoticPool(initCall);
+    }
+
+    function testCreateOsmoticPoolWithMimeTokenNotRegistered() public {
+        bytes memory mimeInitCall =
+            abi.encodeCall(MimeToken.initialize, ("Mime Token", "MIME", merkleRoot, block.timestamp, 1 days));
+        address unregisteredMime = mimeTokenFactory.createMimeToken(mimeInitCall);
+
+        bytes memory poolInitCall =
+            abi.encodeCall(OsmoticPool.initialize, (address(fundingToken), unregisteredMime, address(registry), params));
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidMimeToken.selector));
+
+        controller.createOsmoticPool(poolInitCall);
     }
 
     function testCreateMimeToken() public {
@@ -93,8 +140,8 @@ contract OsmoticControllerTest is Test, BaseSetup {
                 "Mime Token",
                 "MIME",
                 0xdefa96435aec82d201dbd2e5f050fb4e1fef5edac90ce1e03953f916a5e1132d,
-                block.timestamp,
-                1
+                controller.claimTimestamp(),
+                controller.claimDuration()
             )
         );
         MimeToken newToken = MimeToken(controller.createMimeToken(initCall));
@@ -103,25 +150,35 @@ contract OsmoticControllerTest is Test, BaseSetup {
         assertEq(newToken.owner(), deployer, "token owner mismatch");
     }
 
-    function testCreatePool() public {
-        bytes memory governanceTokenInitCall = abi.encodeCall(
+    function testCreateMimeTokenWithWrongArgs() public {
+        bytes memory initCall = abi.encodeCall(
             MimeToken.initialize,
             (
                 "Mime Token",
                 "MIME",
                 0xdefa96435aec82d201dbd2e5f050fb4e1fef5edac90ce1e03953f916a5e1132d,
-                block.timestamp,
-                1
+                block.timestamp - 1,
+                controller.claimDuration()
             )
         );
 
-        IProjectList newList = IProjectList(controller.createProjectList("New list"));
+        vm.expectRevert("OsmoticController: Invalid timestamp for token");
 
-        (address newToken, address newPool) =
-            controller.createPool(address(fundingToken), address(newList), governanceTokenInitCall, params);
+        controller.createMimeToken(initCall);
 
-        assertEq(controller.isPool(newPool), true, "pool is not registered");
-        assertEq(controller.isToken(newToken), true, "token is not registered");
-        assertEq(MimeToken(newToken).owner(), deployer, "token owner mismatch");
+        initCall = abi.encodeCall(
+            MimeToken.initialize,
+            (
+                "Mime Token",
+                "MIME",
+                0xdefa96435aec82d201dbd2e5f050fb4e1fef5edac90ce1e03953f916a5e1132d,
+                controller.claimTimestamp(),
+                3 weeks
+            )
+        );
+
+        vm.expectRevert("OsmoticController: Invalid round duration for token");
+
+        controller.createMimeToken(initCall);
     }
 }
