@@ -7,25 +7,29 @@ import {UUPSUpgradeable} from "@oz-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import {IProjectList, Project} from "../interfaces/IProjectList.sol";
 
-error BeneficiaryNotProvided();
+error UnauthorizedProjectAdmin();
 error BeneficiaryAlreadyExists(address beneficiary);
-error ProjectDoesNotExist(uint256 projectId);
 
 contract ProjectRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable, IProjectList {
     uint256 public immutable version;
 
+    uint256 public nextProjectId;
+
     mapping(uint256 => Project) projects;
     mapping(address => bool) internal registeredBeneficiaries;
 
-    uint256 nextProjectId;
+    /* *************************************************************************************************************************************/
+    /* ** Events                                                                                                                         ***/
+    /* *************************************************************************************************************************************/
 
-    event ProjectUpdated(uint256 indexed projectId, address beneficiary, bytes contenthash);
+    event ProjectUpdated(uint256 indexed projectId, address admin, address beneficiary, bytes contenthash);
+
+    /* *************************************************************************************************************************************/
+    /* ** Modifiers                                                                                                                      ***/
+    /* *************************************************************************************************************************************/
 
     modifier isValidBeneficiary(address _beneficiary) {
-        if (_beneficiary == address(0)) {
-            revert BeneficiaryNotProvided();
-        }
-
+        require(_beneficiary != address(0), "ProjectRegistry: beneficiary cannot be zero address");
         if (registeredBeneficiaries[_beneficiary]) {
             revert BeneficiaryAlreadyExists(_beneficiary);
         }
@@ -33,9 +37,18 @@ contract ProjectRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable, 
         _;
     }
 
+    modifier onlyAdmin(uint256 _projectId) {
+        if (projects[_projectId].admin != msg.sender) {
+            revert UnauthorizedProjectAdmin();
+        }
+
+        _;
+    }
+
     constructor(uint256 _version) {
-        version = _version;
         _disableInitializers();
+
+        version = _version;
     }
 
     function initialize() public initializer {
@@ -45,38 +58,59 @@ contract ProjectRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable, 
         nextProjectId = 1;
     }
 
+    /* *************************************************************************************************************************************/
+    /* ** Upgradeability Functions                                                                                                       ***/
+    /* *************************************************************************************************************************************/
+
     function implementation() external view returns (address) {
         return _getImplementation();
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
+    /* *************************************************************************************************************************************/
+    /* ** Project Functions                                                                                                              ***/
+    /* *************************************************************************************************************************************/
+
     function registrerProject(address _beneficiary, bytes calldata _contenthash)
         external
+        isValidBeneficiary(_beneficiary)
         returns (uint256 _projectId)
     {
         _projectId = nextProjectId++;
 
-        _updateProject(_projectId, _beneficiary, _contenthash);
+        _updateProject(_projectId, msg.sender, _beneficiary, _contenthash);
     }
 
-    function updateProject(uint256 _projectId, address _beneficiary, bytes calldata _contenthash) external {
-        _updateProject(_projectId, _beneficiary, _contenthash);
-    }
-
-    function _updateProject(uint256 _projectId, address _beneficiary, bytes calldata _contenthash)
-        internal
+    function updateProject(uint256 _projectId, address _newAdmin, address _beneficiary, bytes calldata _contenthash)
+        external
+        onlyAdmin(_projectId)
         isValidBeneficiary(_beneficiary)
     {
-        Project memory oldProject = projects[_projectId];
+        require(_newAdmin != address(0), "ProjectRegistry: new admin cannot be zero address");
 
-        registeredBeneficiaries[oldProject.beneficiary] = false;
+        _updateProject(_projectId, _newAdmin, _beneficiary, _contenthash);
+    }
 
-        projects[_projectId] = Project({beneficiary: _beneficiary, contenthash: _contenthash});
+    /* *************************************************************************************************************************************/
+    /* ** Internal Project Functions                                                                                                     ***/
+    /* *************************************************************************************************************************************/
+
+    function _updateProject(uint256 _projectId, address _admin, address _beneficiary, bytes memory _contenthash)
+        internal
+    {
+        address oldBeneficiary = projects[_projectId].beneficiary;
+        registeredBeneficiaries[oldBeneficiary] = false;
+
+        projects[_projectId] = Project({admin: _admin, beneficiary: _beneficiary, contenthash: _contenthash});
         registeredBeneficiaries[_beneficiary] = true;
 
-        emit ProjectUpdated(_projectId, _beneficiary, _contenthash);
+        emit ProjectUpdated(_projectId, _admin, _beneficiary, _contenthash);
     }
+
+    /* *************************************************************************************************************************************/
+    /* ** IProjectList Functions                                                                                                         ***/
+    /* *************************************************************************************************************************************/
 
     function getProject(uint256 _projectId) public view returns (Project memory) {
         return projects[_projectId];

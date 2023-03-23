@@ -3,32 +3,45 @@ pragma solidity ^0.8.17;
 
 import {Ownable} from "@oz/access/Ownable.sol";
 
-import {IProjectList, Project, ProjectNotInList} from "../../src/interfaces/IProjectList.sol";
+import {IProjectList, Project, ProjectNotInList} from "../interfaces/IProjectList.sol";
 
-import {ProjectRegistry, ProjectDoesNotExist} from "./ProjectRegistry.sol";
+import {ProjectRegistry} from "./ProjectRegistry.sol";
 
+error ProjectDoesNotExist(uint256 projectId);
 error ProjectAlreadyInList(uint256 projectId);
 
 contract OwnableProjectList is Ownable, IProjectList {
     string public name;
     ProjectRegistry public projectRegistry;
 
-    mapping(uint256 => bool) public isProjectIncluded;
+    mapping(uint256 => bool) internal isProjectIncluded;
+
+    /* *************************************************************************************************************************************/
+    /* ** Events                                                                                                                         ***/
+    /* *************************************************************************************************************************************/
 
     event ListUpdated(uint256 indexed projectId, bool included);
 
+    /* *************************************************************************************************************************************/
+    /* ** Modifiers                                                                                                                      ***/
+    /* *************************************************************************************************************************************/
+
     modifier isValidProject(uint256 _projectId) {
-        if (!projectRegistry.projectExists(_projectId)) {
+        if (projectRegistry.projectExists(_projectId)) {
+            _;
+        } else {
             revert ProjectDoesNotExist(_projectId);
         }
-
-        _;
     }
 
-    constructor(address _projectRegistry, string memory _name) Ownable() {
+    constructor(address _projectRegistry, string memory _name) {
         projectRegistry = ProjectRegistry(_projectRegistry);
         name = _name;
     }
+
+    /* *************************************************************************************************************************************/
+    /* ** Project Functions                                                                                                              ***/
+    /* *************************************************************************************************************************************/
 
     function addProject(uint256 _projectId) public onlyOwner isValidProject(_projectId) {
         if (isProjectIncluded[_projectId]) {
@@ -64,11 +77,15 @@ contract OwnableProjectList is Ownable, IProjectList {
         }
     }
 
+    /* *************************************************************************************************************************************/
+    /* ** IProjectList Functions                                                                                                         ***/
+    /* *************************************************************************************************************************************/
+
     function getProject(uint256 _projectId) public view returns (Project memory) {
-        if (!isProjectIncluded[_projectId]) {
-            revert ProjectNotInList(_projectId);
+        if (isProjectIncluded[_projectId]) {
+            return projectRegistry.getProject(_projectId);
         }
-        return projectRegistry.getProject(_projectId);
+        revert ProjectNotInList(_projectId);
     }
 
     function projectExists(uint256 _projectId) public view returns (bool) {

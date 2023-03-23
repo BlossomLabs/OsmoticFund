@@ -15,7 +15,8 @@
     "test": {
       "dependsOn": ["build"],
       "inputs": ["test/**/*.t.sol"],
-      "outputs": []
+      "outputs": [],
+      "env": ["GOERLI_RPC_URL"]
     },
     "lint": {
       "outputs": []
