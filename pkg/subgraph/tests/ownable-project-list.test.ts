@@ -4,7 +4,6 @@ import {
   beforeEach,
   clearStore,
   describe,
-  logStore,
   test,
 } from "matchstick-as";
 import { ProjectProjectList as ProjectProjectListEntity } from "../generated/schema";
@@ -92,7 +91,6 @@ describe("OwnableProjectList mappings", () => {
 
       projectProjectList.save();
 
-      logStore()
       mockedProjectRegistryRPCCall(
         projectListAddress.toHexString(),
         projectRegistry.toHexString()

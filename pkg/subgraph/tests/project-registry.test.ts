@@ -4,7 +4,6 @@ import {
   beforeEach,
   clearStore,
   describe,
-  log,
   test,
 } from "matchstick-as";
 
