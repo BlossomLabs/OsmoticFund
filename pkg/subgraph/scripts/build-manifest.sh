@@ -15,7 +15,6 @@ echo 'Generating manifest from data file: '$DATA
 cat $DATA
 
 # -p manifest/templates/contracts/OsmoticController.template.yaml \
-# -p manifest/templates/contracts/OsmoticPool.template.yaml \
 
 mustache \
   -p manifest/templates/sources/MimeTokenFactories.yaml \
@@ -23,5 +22,6 @@ mustache \
   -p manifest/templates/contracts/MimeTokenFactory.template.yaml \
   -p manifest/templates/contracts/ProjectRegistry.template.yaml \
   -p manifest/templates/contracts/OwnableProjectList.template.yaml \
+  -p manifest/templates/contracts/OsmoticPool.template.yaml \
   $DATA \
   subgraph.template.yaml > subgraph.yaml

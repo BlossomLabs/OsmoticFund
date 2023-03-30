@@ -12,8 +12,8 @@ export function buildProjectRegistryId(projectRegistry: Address): string {
   return formatAddress(projectRegistry);
 }
 
-export function buildProjectId(projectRegistry: Address, projectId: BigInt): string {
-  return join([formatAddress(projectRegistry), projectId.toString()]);
+export function buildProjectId(projectRegistry: Address, projectIndex: BigInt): string {
+  return join([formatAddress(projectRegistry), projectIndex.toString()]);
 }
 
 export function buildProjectListId(projectList: Address): string {
@@ -49,9 +49,9 @@ export function loadOrCreateProjectRegistryEntity(
 
 export function loadOrCreateProjectEntity(
   projectRegistry: Address,
-  projectId: BigInt
+  projectIndex: BigInt
 ): ProjectEntity {
-  const projectEntityId = buildProjectId(projectRegistry, projectId);
+  const projectEntityId = buildProjectId(projectRegistry, projectIndex);
 
   let projectEntity = ProjectEntity.load(projectEntityId);
 

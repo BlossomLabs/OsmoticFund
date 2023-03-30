@@ -10,3 +10,4 @@ dataSources:
 {{> ProjectRegistry.yaml}}
 templates:
   {{> OwnableProjectList.template.yaml}}
+  {{> OsmoticPool.template.yaml}}

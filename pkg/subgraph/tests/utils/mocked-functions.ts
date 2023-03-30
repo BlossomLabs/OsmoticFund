@@ -70,12 +70,22 @@ export function mockedTokenDecimals(
     .returns([getETHInt32(expectedDecimals)]);
 }
 
-export function mockedProjectRegistryRPCCall(address: string, expectedProjectRegistryAddress: string): void {
+export function mockedProjectRegistryRPCCall(contractAddress: string, expectedProjectRegistryAddress: string): void {
   createMockedFunction(
-    Address.fromString(address),
+    Address.fromString(contractAddress),
     "projectRegistry",
     "projectRegistry():(address)"
   )
     .withArgs([])
     .returns([getETHAddress(expectedProjectRegistryAddress)]);
+}
+
+export function mockedOsmoticControllerRPCCall(contractAddress: string, expectedControllerAddress: string): void {
+  createMockedFunction(
+    Address.fromString(contractAddress),
+    "controller",
+    "controller():(address)"
+  )
+    .withArgs([])
+    .returns([getETHAddress(expectedControllerAddress)]);
 }

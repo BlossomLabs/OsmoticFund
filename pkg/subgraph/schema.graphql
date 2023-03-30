@@ -53,13 +53,44 @@ type OsmoticPool @entity {
   fundingToken: Token!
   governanceToken: Token!
   projectList: ProjectList!
-  activeProjects: [Project!]!
   osmoticParams: OsmoticParams!
+  poolProjects: [PoolProject!]! @derivedFrom(field: "osmoticPool")
+}
+
+type PoolProject @entity {
+  "<osmotic pool entity's id>-<project's id>"
+  id: ID!
+  osmoticPool: OsmoticPool!
+  project: Project!
+  active: Boolean!
+  flowLastRate: BigInt!
+  flowLastTime: BigInt!
+  currentRound: BigInt!
+  poolProjectSupports: [PoolProjectSupport!]! @derivedFrom(field: "poolProject")
+}
+
+type PoolProjectSupport @entity {
+  "<pool project entity's id>-<round>"
+  id: ID!
+  poolProject: PoolProject!
+  round: BigInt!
+  support: BigInt!
+  poolProjectParticipantsSupports: [PoolProjectParticipantSupport!]! @derivedFrom(field: "poolProjectSupport")
+
+}
+
+type PoolProjectParticipantSupport @entity {
+  "<pool project support entity's id>-<participant's address>" 
+  id: ID!
+  poolProjectSupport: PoolProjectSupport!
+  participant: Bytes!
+  support: BigInt!
 }
 
 type OsmoticParams @entity {
   "<osmotic pool's id>"
   id: ID!
+  osmoticPool: OsmoticPool!
   decay: BigInt!
   drop: BigInt!
   maxFlow: BigInt!
