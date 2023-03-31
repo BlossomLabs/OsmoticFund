@@ -13,12 +13,18 @@
     "with-env": "dotenv -e ../../.env --"
   },
   "dependencies": {
+    "@chakra-ui/icons": "^2.0.17",
+    "@chakra-ui/react": "^2.5.4",
+    "@emotion/react": "^11.10.6",
+    "@emotion/styled": "^11.10.6",
     "@rainbow-me/rainbowkit": "^0.8.1",
     "ethers": "^5.7.2",
+    "framer-motion": "^10.10.0",
     "next": "13.0.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "ui": "0.0.0",
+    "react-icons": "^4.8.0",
+    "ui": "workspace:*",
     "wagmi": "^0.10.10"
   },
   "devDependencies": {
