@@ -2,7 +2,6 @@ import {
   Stack,
   Heading,
   Text,
-  useBreakpointValue,
   Box,
   Button,
   FormControl,
@@ -16,9 +15,6 @@ import {
   SliderThumb,
   VStack,
 } from '@chakra-ui/react'
-import { BsTrashFill } from 'react-icons/bs'
-import { useAccount } from 'wagmi'
-import { useSupportList } from '~/hooks/useSupportList'
 import TopBar from '../../components/Topbar'
   
 type CreatePoolPage = {
