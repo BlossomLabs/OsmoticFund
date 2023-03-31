@@ -1,6 +1,6 @@
 import { createContext, useState } from 'react';
 
-type Project = {
+export type Project = {
   name: string;
   description: string;
   streaming: number;
