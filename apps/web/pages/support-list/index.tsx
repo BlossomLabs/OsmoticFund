@@ -13,16 +13,17 @@ import {
   SliderFilledTrack,
   SliderThumb,
   IconButton,
+  HStack,
   Button,
   useColorModeValue,
 } from '@chakra-ui/react'
 import { useState } from 'react'
-import { BsTrashFill } from 'react-icons/bs'
+import { BsTrashFill, BsLockFill, BsUnlockFill } from 'react-icons/bs';
 import { useProjects } from '~/hooks/useProjects'
 import { useSupportList } from '~/hooks/useSupportList'
 import { Project } from '~/providers/ProjectProvider'
 import TopBar from '../../components/Topbar'
-  
+
 type SupportListPage = {
     id: string
 }
@@ -35,6 +36,24 @@ export const SupportListPage = () => {
   const supportedProjects: Project[] = supportList.map((projectName: string) => {
     return projects.find(project => project.name === projectName)
   })
+
+
+  const [lockedSliders, setLockedSliders] = useState<Record<string, boolean>>(() => {
+    const initialState: Record<string, boolean> = {};
+    supportedProjects.forEach((project) => {
+      project.elegiblePools.forEach((pool) => {
+        initialState[`${project.name}_${pool}`] = false;
+      });
+    });
+    return initialState;
+  });
+
+  const handleLockToggle = (projectName: string, pool: string) => () => {
+    setLockedSliders({
+      ...lockedSliders,
+      [`${projectName}_${pool}`]: !lockedSliders[`${projectName}_${pool}`],
+    });
+  };
 
   const colors = [
     'blue.500',
@@ -75,52 +94,106 @@ export const SupportListPage = () => {
     const updatedSliderValues = { ...sliderValues };
 
     Object.keys(poolColors).forEach((pool) => {
-      const projectsWithColor = supportedProjects.filter((project: any) =>
+      const projectsInPool = supportedProjects.filter((project: any) =>
         project.elegiblePools.includes(pool)
       );
 
-      const newValue = 100 / projectsWithColor.length;
+      // Get the unlocked sliders for this pool
+      const unlockedProjectsInPool = projectsInPool.filter(
+        (project: Project) => !lockedSliders[`${project.name}_${pool}`]
+      );
 
-      projectsWithColor.forEach((project: any) => {
-        updatedSliderValues[`${project.name}_${pool}`] = newValue;
+      const lockedProjectsInPool = projectsInPool.filter(
+        (project: Project) => lockedSliders[`${project.name}_${pool}`]
+      );
+
+      const totalLockedValueInPool = lockedProjectsInPool.reduce(
+        (acc, project: Project) => acc + sliderValues[`${project.name}_${pool}`],
+        0
+      );
+
+      // Calculate the new value for unlocked sliders
+      const evenValueForUnlockedSliders = (100 - totalLockedValueInPool) / unlockedProjectsInPool.length;
+
+      // Update the unlocked sliders with the new value
+      unlockedProjectsInPool.forEach((project: any) => {
+        updatedSliderValues[`${project.name}_${pool}`] = evenValueForUnlockedSliders;
       });
     });
 
     setSliderValues(updatedSliderValues);
   };
 
-  const handleSliderChange = (projectName: string, pool: string) => (
-    value: number
-  ) => {
-    const updatedSliderValues = {
-      ...sliderValues,
-      [`${projectName}_${pool}`]: value,
-    };
 
-    const totalValueForColor = Object.entries(updatedSliderValues).reduce(
-      (acc, [key, value]) => {
-        const [_projectName, _pool] = key.split("_");
-        if (_pool === pool) {
-          return acc + value;
-        }
-        return acc;
-      },
+  const handleSliderChange = (projectName: string, pool: string) => (
+    newValue: number
+  ) => {
+
+    const otherSliderEntries = Object.entries(sliderValues).filter(([key, _]) => {
+      const [_projectName, _pool] = key.split("_");
+      return _projectName !== projectName && _pool === pool;
+    });
+
+    const totalValueInOtherSliders = otherSliderEntries.reduce(
+      (acc, [_, value]) => acc + value,
       0
     );
 
-    if (totalValueForColor > 100) {
-      const ratio = 100 / totalValueForColor;
-
-      for (const key in updatedSliderValues) {
-        const [_projectName, _pool] = key.split("_");
-        if (_pool === pool) {
-          updatedSliderValues[key] *= ratio;
-        }
-      }
+    if (totalValueInOtherSliders + newValue <= 100) {
+      setSliderValues({
+        ...sliderValues,
+        [`${projectName}_${pool}`]: newValue,
+      });
+      setLockedSliders({
+        ...lockedSliders,
+        [`${projectName}_${pool}`]: true,
+      })
+      return;
     }
 
+    const unlockedOtherSliderEntries = otherSliderEntries.filter(
+      ([key, _]) => !lockedSliders[key]
+    );
+
+    const lockedOtherSliderEntries = otherSliderEntries.filter(
+      ([key, _]) => lockedSliders[key]
+    );
+
+    const totalLockedValueInOtherSliders = lockedOtherSliderEntries.reduce(
+      (acc, [_, value]) => acc + value,
+      0
+    );
+
+    const totalUnlockedValueInOtherSliders = unlockedOtherSliderEntries.reduce(
+      (acc, [_, value]) => acc + value,
+      0
+    );
+
+    const maxValueForCurrentSlider = 100 - totalLockedValueInOtherSliders;
+
+    if (newValue > maxValueForCurrentSlider) {
+      newValue = maxValueForCurrentSlider;
+    }
+
+    const valueToDistributeAmongUnlockedSliders = 100 - newValue - totalLockedValueInOtherSliders;
+
+    const updatedSliderValues = { ...sliderValues };
+
+    const ratio = valueToDistributeAmongUnlockedSliders / totalUnlockedValueInOtherSliders;
+
+    unlockedOtherSliderEntries.forEach(([key, _]) => {
+      updatedSliderValues[key] *= ratio;
+    });
+
+    updatedSliderValues[`${projectName}_${pool}`] = newValue;
+
     setSliderValues(updatedSliderValues);
+    setLockedSliders({
+      ...lockedSliders,
+      [`${projectName}_${pool}`]: true,
+    })
   };
+
   if (!supportedProjects.length) {
     return (
       <Stack justify="center" align="center" spacing="30px">
@@ -150,15 +223,24 @@ export const SupportListPage = () => {
           </Thead>
           <Tbody>
             {supportedProjects.map((project: any) => (
-              <Tr>
+              <Tr key={project.name}>
                 <Td>{project.name}</Td>
-                <Td>{project.elegiblePools.map(pool => <Text>{pool}</Text>)}</Td>
-                <Td>{project.elegiblePools.map(pool => (
-                  <SupportSlider
-                    color={poolColors[pool]}
-                    value={sliderValues[`${project.name}_${pool}`]}
-                    onChange={handleSliderChange(project.name, pool)}
-                  />
+                <Td>{project.elegiblePools.map(pool => <Text key={pool}>{pool}</Text>)}</Td>
+                <Td width="300px">{project.elegiblePools.map(pool => (
+                  <HStack key={pool}>
+                    <SupportSlider
+                      color={poolColors[pool]}
+                      value={sliderValues[`${project.name}_${pool}`]}
+                      onChange={handleSliderChange(project.name, pool)}
+                    />
+                    <IconButton
+                      size="xs"
+                      onClick={handleLockToggle(project.name, pool)}
+                      icon={lockedSliders[`${project.name}_${pool}`] ? <BsLockFill /> : <BsUnlockFill />}
+                      color={lockedSliders[`${project.name}_${pool}`] ? "blue.500" : "grey"}
+                      aria-label="Lock slider"
+                    />
+                  </HStack>
                 ))}</Td>
                 <Td><IconButton onClick={handleSupportListRemove(project.name)} colorScheme="red" aria-label="Remove" icon={<BsTrashFill />} size="xs" /></Td>
               </Tr>
@@ -187,7 +269,7 @@ type SupportSlider =  {
   value?: number
   onChange?: any
 }
-  
+
 const SupportSlider = ({ color, value, onChange }: SupportSlider) => {
   const thumbBg = useColorModeValue("white", "gray.800");
 
@@ -203,6 +285,5 @@ const SupportSlider = ({ color, value, onChange }: SupportSlider) => {
     </Slider>
   );
 };
-        
+
 export default SupportListPage;
-  
