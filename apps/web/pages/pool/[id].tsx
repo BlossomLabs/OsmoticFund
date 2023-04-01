@@ -19,16 +19,16 @@ export const PoolPage = () => {
   const direction = useBreakpointValue({ base: 'column', md: 'row' });
   const { pools } = usePools()
   const { projects } = useProjects()
-  const pool = pools?.find(pool => pool.name === id) || {name: null, description: null, supporting: 0, govToken: null, elegibleProjects: [], streaming: 0, streamed: 0, token: null, streams: {}, available: 0} 
+  const pool = pools?.find(pool => pool.name === id) || {name: null, description: null, supporting: 0, govToken: null, elegibleProjects: [], streaming: 0, streamed: 0, token: null, streams: {}, available: 0}
   const elegibleProjects = pool.elegibleProjects?.map((name: string) => projects.find(project => project.name === name)) || []
   return (
     <Stack justify="center" align="center" spacing="30px">
       <TopBar />
-  
+
       <Stack mt={'0px !important'} width="100%">
         <Image src={`/img/${pool.name}.png`} alt={pool.name} height="300px" objectFit="cover" />
       </Stack>
-      
+
       <Stack maxWidth="1200" px="8" mx="auto">
         <Flex direction={direction}>
           <Stack pr="8" mb="16" flex={1}>
@@ -57,7 +57,6 @@ export const PoolPage = () => {
     </Stack>
   );
 };
-  
-  
+
+
 export default PoolPage;
-  

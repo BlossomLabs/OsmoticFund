@@ -18,9 +18,9 @@ const TopBar = () => {
             <ChakraLink>osmotic.fund</ChakraLink>
           </Link>
         </Heading>
-        
+
         <Spacer />
-        
+
         {isConnected && (
           <>
             <Link href="/support-list" passHref>

@@ -6,6 +6,10 @@ export type Project = {
   streaming: number;
   streamed: number;
   elegiblePools: string[];
+  address: string;
+  url: string;
+  twitter: string;
+  gitcoin: string;
 }
 
 const projects: Project[] = [
@@ -15,6 +19,10 @@ const projects: Project[] = [
     streaming: 2000,
     streamed: 5000,
     elegiblePools: ["1Hive", "Aragon"],
+    address: "0x0035cC37599241D007D0AbA1Fb931C5FA757f7A1",
+    url: "https://evmcrispr.eth.limo/",
+    twitter: "https://twitter.com/blossomlabs",
+    gitcoin: "https://gitcoin.co/grants/4502/evmcrispr",
   },
   {
     name: "Quests",
@@ -22,6 +30,10 @@ const projects: Project[] = [
     streaming: 300,
     streamed: 500,
     elegiblePools: ["1Hive"],
+    address: "0x9116248D38aF8b535723Db13cBF3E18307665b1c",
+    url: "https://quests.1hive.org/",
+    twitter: "https://twitter.com/1HiveOrg",
+    gitcoin: "https://gitcoin.co/grants/5050/1hivequests",
   },
   {
     name: "Gardens",
@@ -29,6 +41,10 @@ const projects: Project[] = [
     streaming: 1000,
     streamed: 2000,
     elegiblePools: ["1Hive"],
+    address: "0x1aD44446A588010AB6b741cd0201b92f84B597bB",
+    url: "https://gardens.1hive.org/",
+    twitter: "https://twitter.com/1HiveOrg",
+    gitcoin: "https://gitcoin.co/grants/5070/1hive-gardens",
   },
   {
     name: "Lodestar",
@@ -36,6 +52,10 @@ const projects: Project[] = [
     streaming: 20000,
     streamed: 20000,
     elegiblePools: ["Aragon"],
+    address: "0xc8F9f8C913d6fF031c65e3bF7c7a51Ad1f3a86E5",
+    url: "https://lodestar.chainsafe.io/",
+    twitter: "https://twitter.com/lodestar_eth",
+    gitcoin: "https://bounties.gitcoin.co/grants/6034/lodestar-typescript-ethereum-consensus-client",
   },
   {
     name: "Bankless DAO",
@@ -43,6 +63,10 @@ const projects: Project[] = [
     streaming: 10000,
     streamed: 10000,
     elegiblePools: ["Aragon"],
+    address: "0xf26d1Bb347a59F6C283C53156519cC1B1ABacA51",
+    url: "https://bankless.community/",
+    twitter: "https://twitter.com/banklessDAO",
+    gitcoin: "https://bounties.gitcoin.co/grants/7393/banklessdao-projects"
   }
 ];
 export const ProjectContext = createContext({ projects });
@@ -54,4 +78,3 @@ export const ProjectProvider = ({ children }: any) => {
     </ProjectContext.Provider>
   );
 };
-  

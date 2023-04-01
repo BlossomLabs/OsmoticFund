@@ -1,4 +1,4 @@
-import { Box, Card, Image, Stack, Text, Heading, AspectRatio } from '@chakra-ui/react'
+import { Box, Card, Image, Stack, Text, Heading } from '@chakra-ui/react'
 import Link from 'next/link'
 
 type PoolCard = {
@@ -11,7 +11,7 @@ type PoolCard = {
 export const PoolCard = ({poolName, token, streaming, streamed}: PoolCard) => {
   return (
     <Stack width="352px" height="114px" maxWidth="100%">
-      
+
       <Card direction={{ base: 'column', sm: 'row' }}
         overflow='hidden'
         variant='outline'

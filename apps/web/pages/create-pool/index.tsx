@@ -16,7 +16,7 @@ import {
   VStack,
 } from '@chakra-ui/react'
 import TopBar from '../../components/Topbar'
-  
+
 type CreatePoolPage = {
     id: string
 }
@@ -30,7 +30,7 @@ export const CreatePoolPage = ({id}: CreatePoolPage) => {
 
   return (
     <Stack justify="center" align="center" spacing="30px">
-      <TopBar />      
+      <TopBar />
       <Stack maxWidth="1200" px="8" mx="auto">
         <Heading size="lg">
           Create new Pool
@@ -99,6 +99,5 @@ export const CreatePoolPage = ({id}: CreatePoolPage) => {
     </Stack>
   );
 };
-        
+
 export default CreatePoolPage;
-  

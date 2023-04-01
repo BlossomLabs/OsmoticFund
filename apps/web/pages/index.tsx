@@ -17,7 +17,7 @@ export const Home = () => {
   return (
     <Stack justify="center" align="center" spacing="30px">
       <TopBar />
-    
+
       <Stack maxWidth="1200" px={8} mx={'auto'} width="100%">
 
         <Heading size="lg">
