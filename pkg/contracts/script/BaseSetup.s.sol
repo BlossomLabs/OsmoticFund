@@ -24,12 +24,36 @@ contract BaseSetup is SetupScript {
     // we use goerli address to test dependencies in the fork chain
     address cfaV1ForwarderAddress = 0xcfA132E353cB4E398080B9700609bb008eceB125;
     address mimeTokenFactoryAddress = 0x3D1Bebcfc55192bF6eE9E94F0EBA2fb54D5423aC;
-    address fundingTokenAddress = 0x668168D45eEf326E0E746c86e11b212492Dd8309; // DAIx
-    address tokensOwner = 0x5CfAdf589a694723F9Ed167D647582B3Db3b33b3;
+    address fundingTokenAddress = 0xF2d68898557cCb2Cf4C10c3Ef2B034b2a69DAD00; // DAIx
 
     // tokens
     ISuperToken fundingToken;
     MimeToken mimeToken;
+
+    // TODO: This whole mime setup should be imported from the Mime Token repo
+    // token holders
+    address mimeHolder0 = 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC;
+    address mimeHolder2 = 0x70997970C51812dc3A010C7d01b50e0d17dc79C8;
+    address mimeHolder3 = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+
+    // merkle proofs
+    bytes32[][4] holdersProofs = [
+        [
+            bytes32(0x11079118024000df209172a1af6eb7a9ea4e5b2bd6e2760481566ce6bee3e0cd),
+            bytes32(0xf46478da86f39b5d4f0af753bbc54ab402404b5ed5369f359e8fb24268b12edc)
+        ],
+        [bytes32(0x0), bytes32(0x0)],
+        [
+            bytes32(0x9224c4ad0c0d0ea48b770992025547eff95b06645c92f0c047c9d7c161de8091),
+            bytes32(0x0627178dd800c957efbe02c61cf32bcab724b4e87b735d34f03e6766ca038c10)
+        ],
+        [
+            bytes32(0x2da52479032a949acaa5138ddd9cf15898df48085ce832cb5fad7367f7bd3cac),
+            bytes32(0x0627178dd800c957efbe02c61cf32bcab724b4e87b735d34f03e6766ca038c10)
+        ]
+    ];
+
+    uint256 amount = 0x3635c9adc5dea00000;
 
     // dependencies
     ICFAv1Forwarder cfaForwarder;
@@ -60,7 +84,6 @@ contract BaseSetup is SetupScript {
         // labels
         vm.label(deployer, "deployer");
         vm.label(notAuthorized, "notAuthorized");
-        vm.label(tokensOwner, "tokensOwner");
         vm.label(cfaV1ForwarderAddress, "cfaForwarder");
         vm.label(mimeTokenFactoryAddress, "mimeTokenFactory");
         vm.label(fundingTokenAddress, "fundingToken");
@@ -75,6 +98,7 @@ contract BaseSetup is SetupScript {
         registryImplementation = setUpContract("ProjectRegistry", constructorArgs);
         address registryProxy = setUpProxy(registryImplementation, abi.encodeCall(ProjectRegistry.initialize, ()));
         registry = ProjectRegistry(registryProxy);
+        vm.label(address(registry), "registry");
 
         // deploy controller
         // We create a dummy contract to be used as the init beacon implementation
@@ -85,6 +109,7 @@ contract BaseSetup is SetupScript {
         address controllerProxy =
             setUpProxy(controllerImplementation, abi.encodeCall(OsmoticController.initialize, (roundDuration)));
         controller = OsmoticController(controllerProxy);
+        vm.label(address(controller), "controller");
 
         // now that we have the controller proxy we upgrade the beacon implementation to OsmoticPool
         osmoticPoolImplementation = setUpContract("OsmoticPool", abi.encode(address(cfaForwarder), address(controller)));
@@ -97,15 +122,16 @@ contract BaseSetup is SetupScript {
             ("Osmotic Fund", "OF", merkleRoot, controller.claimTimestamp(), controller.claimDuration())
         );
         mimeToken = MimeToken(controller.createMimeToken(tokenInitCall));
+        vm.label(address(mimeToken), "mimeToken");
+
+        mimeToken.claim(0, mimeHolder0, amount, holdersProofs[0]);
+        mimeToken.claim(2, mimeHolder2, amount, holdersProofs[2]);
+        mimeToken.claim(3, mimeHolder3, amount, holdersProofs[3]);
 
         bytes memory poolInitCall = abi.encodeCall(
             OsmoticPool.initialize, (address(fundingToken), address(mimeToken), address(registry), params)
         );
         pool = OsmoticPool(controller.createOsmoticPool(poolInitCall));
-
-        vm.label(address(registry), "registry");
-        vm.label(address(controller), "controller");
-        vm.label(address(mimeToken), "mimeToken");
         vm.label(address(pool), "pool");
     }
 }
