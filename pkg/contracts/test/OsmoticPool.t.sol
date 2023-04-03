@@ -4,13 +4,16 @@ pragma experimental ABIEncoderV2;
 
 import "forge-std/Test.sol";
 import {ABDKMath64x64} from "abdk-libraries/ABDKMath64x64.sol";
+import "@oz/utils/Strings.sol";
+
 import {
     OsmoticPool,
     ProjectSupport,
     PoolProject,
     ProjectAlreadyActive,
     ProjectNeedsMoreStake,
-    ProjectWithoutSupport
+    ProjectWithoutSupport,
+    SupportUnderflow
 } from "../src/OsmoticPool.sol";
 import {OsmoticParams} from "../src/OsmoticFormula.sol";
 import {ProjectNotInList} from "../src/interfaces/IProjectList.sol";
@@ -27,6 +30,9 @@ contract OsmoticPoolTest is Test, BaseSetUpWithProjectList {
     address governanceTokenHolder = address(100);
     uint256 stakedAmount = 100e18;
 
+    uint256 projectId0;
+    uint256 projectId1;
+
     event ProjectActivated(uint256 indexed projectId);
     event ProjectDeactivated(uint256 indexed projectId);
     event ProjectSupportUpdated(uint256 indexed round, uint256 indexed projectId, address participant, int256 delta);
@@ -34,24 +40,119 @@ contract OsmoticPoolTest is Test, BaseSetUpWithProjectList {
 
     function setUp() public override {
         super.setUp();
+
+        projectId0 = createProject();
+        projectId1 = createProject();
     }
 
-    function testActivateProject() public {
-        uint256 projectId = createProject();
-        (,, bool activeBefore,) = pool.poolProjects(projectId);
+    function test_SupportProjects() public {
+        ProjectSupport[] memory projectSupports = new ProjectSupport[](2);
+
+        projectSupports[0].projectId = projectId0;
+        projectSupports[1].projectId = projectId1;
+
+        projectSupports[0].deltaSupport = 20 ether;
+        projectSupports[1].deltaSupport = 30 ether;
+
+        _performProjectSupportTest(projectSupports);
+    }
+
+    function test_UnsupportProjects() public {
+        int256 deltaSupport0 = 20 ether;
+        int256 deltaSupport1 = 30 ether;
+
+        supportProject(mimeHolder0, projectId0, deltaSupport0);
+        supportProject(mimeHolder0, projectId1, deltaSupport1);
+
+        ProjectSupport[] memory projectUnsupports = new ProjectSupport[](2);
+        projectUnsupports[0].projectId = projectId0;
+        projectUnsupports[0].deltaSupport = -10 ether;
+        projectUnsupports[1].projectId = projectId1;
+        projectUnsupports[1].deltaSupport = -15 ether;
+
+        _performProjectSupportTest(projectUnsupports);
+    }
+
+    function test_SupportAndUnsupportProjectAtTheSameTime() public {
+        string memory projectIdStr = Strings.toString(projectId0);
+        ProjectSupport[] memory projectSupports = new ProjectSupport[](2);
+
+        projectSupports[0].projectId = projectId0;
+        projectSupports[1].projectId = projectId0;
+
+        projectSupports[0].deltaSupport = 20 ether;
+        projectSupports[1].deltaSupport = -10 ether;
+
+        int256 newDeltaSupport = projectSupports[0].deltaSupport + projectSupports[1].deltaSupport;
+
+        uint256 projectSupportBefore = pool.getProjectSupport(projectId0);
+        uint256 participantSupportBefore = pool.getParticipantSupport(projectId0, mimeHolder0);
+
+        vm.prank(mimeHolder0);
+        pool.supportProjects(projectSupports);
+
+        uint256 projectSupportAfter = pool.getProjectSupport(projectId0);
+        uint256 participantSupportAfter = pool.getParticipantSupport(projectId0, mimeHolder0);
+
+        uint256 expectedProjectSupport = uint256(int256(projectSupportBefore) + newDeltaSupport);
+        uint256 expectedParticipantSupport = uint256(int256(participantSupportBefore) + newDeltaSupport);
+
+        assertEq(
+            projectSupportAfter,
+            expectedProjectSupport,
+            string.concat("Project ", projectIdStr, " total support mismatch")
+        );
+        assertEq(
+            participantSupportAfter,
+            expectedParticipantSupport,
+            string.concat("Project ", projectIdStr, " participant support mismatch")
+        );
+    }
+
+    function test_RevertWhenSupportingProjectsWithoutBalance() public {
+        address invalidParticipant = address(999);
+
+        vm.expectRevert("NO_BALANCE_AVAILABLE");
+        supportProject(invalidParticipant, projectId0, 20 ether);
+    }
+
+    function test_RevertWhenSupportingInvalidProjects() public {
+        uint256 invalidProjectId = 999;
+
+        vm.expectRevert(abi.encodeWithSelector(ProjectNotInList.selector, invalidProjectId));
+        supportProject(mimeHolder0, invalidProjectId, 20 ether);
+    }
+
+    function test_RevertWhenSupportingWithMoreThanAvailableBalance() public {
+        uint256 holderBalance = mimeToken.balanceOf(mimeHolder0);
+
+        vm.expectRevert("NOT_ENOUGH_BALANCE");
+        supportProject(mimeHolder0, projectId0, int256(holderBalance + 1 ether));
+    }
+
+    function test_revertWhenSupportingProjectsWithSupportUnderflow() public {
+        int256 deltaSupport = 20 ether;
+        supportProject(mimeHolder0, projectId0, deltaSupport);
+
+        vm.expectRevert(abi.encodeWithSelector(SupportUnderflow.selector));
+        supportProject(mimeHolder0, projectId0, -deltaSupport - 1 ether);
+    }
+
+    function test_ActivateProject() public {
+        (,, bool activeBefore,) = pool.poolProjects(projectId0);
         assertFalse(activeBefore);
 
-        supportProject(mimeHolder0, projectId, 10);
+        supportProject(mimeHolder0, projectId0, 10);
         vm.expectEmit(true, false, false, false);
-        emit ProjectActivated(projectId);
+        emit ProjectActivated(projectId0);
 
-        pool.activateProject(projectId);
-        (,, bool activeAfter,) = pool.poolProjects(projectId);
+        pool.activateProject(projectId0);
+        (,, bool activeAfter,) = pool.poolProjects(projectId0);
 
         assertTrue(activeAfter);
     }
 
-    function testActivateProjectHavingToDesactiveAnotherOne() public {
+    function test_ActivateProjectHavingToDesactiveAnotherOne() public {
         createProjects(pool.MAX_ACTIVE_PROJECTS());
 
         supportAllProjects(mimeHolder0, 20);
@@ -69,30 +170,27 @@ contract OsmoticPoolTest is Test, BaseSetUpWithProjectList {
         assertFalse(active);
     }
 
-    function testActivateProjectNotInList() public {
+    function test_RevertWhenActivatingProjectNotInList() public {
         uint256 nonExistentProject = 999;
 
         vm.expectRevert(abi.encodeWithSelector(ProjectNotInList.selector, nonExistentProject));
         pool.activateProject(nonExistentProject);
     }
 
-    function testActivateProjectWithoutSupport() public {
-        uint256 projectId = createProject();
-
-        vm.expectRevert(abi.encodeWithSelector(ProjectWithoutSupport.selector, projectId));
-        pool.activateProject(projectId);
+    function test_RevertWhenActivatingProjectwithoutSupport() public {
+        vm.expectRevert(abi.encodeWithSelector(ProjectWithoutSupport.selector, projectId0));
+        pool.activateProject(projectId0);
     }
 
-    function testActivateAlreadyActivedProject() public {
-        uint256 projectId = createProject();
-        supportProject(mimeHolder0, projectId, 10);
-        pool.activateProject(projectId);
+    function test_RevertWhenActivatingAlreadyActivedProject() public {
+        supportProject(mimeHolder0, projectId0, 10);
+        pool.activateProject(projectId0);
 
-        vm.expectRevert(abi.encodeWithSelector(ProjectAlreadyActive.selector, projectId));
-        pool.activateProject(projectId);
+        vm.expectRevert(abi.encodeWithSelector(ProjectAlreadyActive.selector, projectId0));
+        pool.activateProject(projectId0);
     }
 
-    function testActivateProjectWithNotEnoughStake() public {
+    function test_RevertWhenActivatingProjectWithNotEnoughStake() public {
         createProjects(pool.MAX_ACTIVE_PROJECTS());
 
         int256 minSupportRequired = 20;
@@ -108,5 +206,46 @@ contract OsmoticPoolTest is Test, BaseSetUpWithProjectList {
             abi.encodeWithSelector(ProjectNeedsMoreStake.selector, projectId, projectSupport, minSupportRequired)
         );
         pool.activateProject(projectId);
+    }
+
+    function _performProjectSupportTest(ProjectSupport[] memory _projectSupports) private {
+        uint256[] memory projectTotalSupportsBefore = new uint256[](_projectSupports.length);
+        uint256[] memory projectParticipantSupportsBefore = new uint256[](_projectSupports.length);
+
+        for (uint256 i = 0; i < _projectSupports.length; i++) {
+            uint256 projectId = _projectSupports[i].projectId;
+            int256 deltaSupport = _projectSupports[i].deltaSupport;
+
+            projectTotalSupportsBefore[i] = pool.getProjectSupport(projectId);
+            projectParticipantSupportsBefore[i] = pool.getParticipantSupport(projectId, mimeHolder0);
+
+            vm.expectEmit(true, true, false, true);
+            emit ProjectSupportUpdated(currentRound, projectId, mimeHolder0, deltaSupport);
+        }
+
+        vm.prank(mimeHolder0);
+        pool.supportProjects(_projectSupports);
+
+        for (uint256 i = 0; i < _projectSupports.length; i++) {
+            uint256 projectId = _projectSupports[i].projectId;
+            string memory projectIdStr = Strings.toString(projectId);
+            int256 deltaSupport = _projectSupports[i].deltaSupport;
+
+            uint256 projectSupportBefore = projectTotalSupportsBefore[i];
+            uint256 projectSupportAfter = pool.getProjectSupport(projectId);
+            uint256 participantSupportBefore = projectParticipantSupportsBefore[i];
+            uint256 participantSupportAfter = pool.getParticipantSupport(projectId, mimeHolder0);
+
+            assertEq(
+                projectSupportAfter,
+                uint256(int256(projectSupportBefore) + deltaSupport),
+                string.concat("Project ", projectIdStr, " total support mismatch")
+            );
+            assertEq(
+                participantSupportAfter,
+                uint256(int256(participantSupportBefore) + deltaSupport),
+                string.concat("Project ", projectIdStr, " participant support mismatch")
+            );
+        }
     }
 }

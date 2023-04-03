@@ -53,6 +53,8 @@ contract BaseSetup is SetupScript {
         ]
     ];
 
+    uint256 currentRound = 0;
+
     uint256 amount = 0x3635c9adc5dea00000;
 
     // dependencies
