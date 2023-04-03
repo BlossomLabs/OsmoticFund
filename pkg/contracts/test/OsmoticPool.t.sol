@@ -22,9 +22,6 @@ import {BaseSetUpWithProjectList} from "../script/BaseSetUpWithProjectList.s.sol
 contract OsmoticPoolTest is Test, BaseSetUpWithProjectList {
     using ABDKMath64x64 for int128;
 
-    event OsmoticParamsChanged(uint256 decay, uint256 drop, uint256 maxFlow, uint256 minStakeRatio);
-    event ProjectSupportUpdated(uint256 indexed projectId, address participant, int256 delta);
-
     OsmoticParams osmoticParams = OsmoticParams(1, 1, 1, 1);
     address noTokenHolder = address(10);
     address governanceTokenHolder = address(100);
@@ -33,10 +30,13 @@ contract OsmoticPoolTest is Test, BaseSetUpWithProjectList {
     uint256 projectId0;
     uint256 projectId1;
 
+    OsmoticParams newOsmoticParams = OsmoticParams({decay: 1000, drop: 1001, maxFlow: 1002, minStakeRatio: 1003});
+
     event ProjectActivated(uint256 indexed projectId);
     event ProjectDeactivated(uint256 indexed projectId);
     event ProjectSupportUpdated(uint256 indexed round, uint256 indexed projectId, address participant, int256 delta);
     event FlowSynced(uint256 indexed projectId, address beneficiary, uint256 flowRate);
+    event OsmoticParamsChanged(uint256 decay, uint256 drop, uint256 maxFlow, uint256 minStakeRatio);
 
     function setUp() public override {
         super.setUp();
@@ -130,7 +130,7 @@ contract OsmoticPoolTest is Test, BaseSetUpWithProjectList {
         supportProject(mimeHolder0, projectId0, int256(holderBalance + 1 ether));
     }
 
-    function test_revertWhenSupportingProjectsWithSupportUnderflow() public {
+    function test_RevertWhenSupportingProjectsWithSupportUnderflow() public {
         int256 deltaSupport = 20 ether;
         supportProject(mimeHolder0, projectId0, deltaSupport);
 
@@ -208,6 +208,56 @@ contract OsmoticPoolTest is Test, BaseSetUpWithProjectList {
         pool.activateProject(projectId);
     }
 
+    function test_SetOsmoticFormulaParams() public {
+        vm.expectEmit(false, false, false, true);
+        emit OsmoticParamsChanged(
+            newOsmoticParams.decay, newOsmoticParams.drop, newOsmoticParams.maxFlow, newOsmoticParams.minStakeRatio
+        );
+
+        pool.setOsmoticFormulaParams(newOsmoticParams);
+
+        _assertOsmoticParam(pool.decay(), newOsmoticParams.decay);
+        _assertOsmoticParam(pool.drop(), newOsmoticParams.drop);
+        _assertOsmoticParam(pool.maxFlow(), newOsmoticParams.maxFlow);
+        _assertOsmoticParam(pool.minStakeRatio(), newOsmoticParams.minStakeRatio);
+    }
+
+    function test_setOsmoticFormulaDecay() public {
+        vm.expectEmit(false, false, false, true);
+        emit OsmoticParamsChanged(newOsmoticParams.decay, params.drop, params.maxFlow, params.minStakeRatio);
+
+        pool.setOsmoticFormulaDecay(newOsmoticParams.decay);
+
+        _assertOsmoticParam(pool.decay(), newOsmoticParams.decay);
+    }
+
+    function test_setOsmoticFormulaDrop() public {
+        vm.expectEmit(false, false, false, true);
+        emit OsmoticParamsChanged(params.decay, newOsmoticParams.drop, params.maxFlow, params.minStakeRatio);
+
+        pool.setOsmoticFormulaDrop(newOsmoticParams.drop);
+
+        _assertOsmoticParam(pool.drop(), newOsmoticParams.drop);
+    }
+
+    function test_setOsmoticFormulaMaxFlow() public {
+        vm.expectEmit(false, false, false, true);
+        emit OsmoticParamsChanged(params.decay, params.drop, newOsmoticParams.maxFlow, params.minStakeRatio);
+
+        pool.setOsmoticFormulaMaxFlow(newOsmoticParams.maxFlow);
+
+        _assertOsmoticParam(pool.maxFlow(), newOsmoticParams.maxFlow);
+    }
+
+    function test_setOsmoticFormulaMinStakeRatio() public {
+        vm.expectEmit(false, false, false, true);
+        emit OsmoticParamsChanged(params.decay, params.drop, params.maxFlow, newOsmoticParams.minStakeRatio);
+
+        pool.setOsmoticFormulaMinStakeRatio(newOsmoticParams.minStakeRatio);
+
+        _assertOsmoticParam(pool.minStakeRatio(), newOsmoticParams.minStakeRatio);
+    }
+
     function _performProjectSupportTest(ProjectSupport[] memory _projectSupports) private {
         uint256[] memory projectTotalSupportsBefore = new uint256[](_projectSupports.length);
         uint256[] memory projectParticipantSupportsBefore = new uint256[](_projectSupports.length);
@@ -247,5 +297,9 @@ contract OsmoticPoolTest is Test, BaseSetUpWithProjectList {
                 string.concat("Project ", projectIdStr, " participant support mismatch")
             );
         }
+    }
+
+    function _assertOsmoticParam(int128 _poolParam, uint256 _param) private {
+        assertEq(_poolParam.mulu(1e18), _param);
     }
 }
