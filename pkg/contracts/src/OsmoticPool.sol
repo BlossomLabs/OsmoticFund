@@ -210,7 +210,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
 
         for (uint256 i = 0; i < activeProjectIds.length; i++) {
             uint256 projectId = activeProjectIds[i];
-            if (poolProjects[projectId].flowLastTime == block.timestamp || projectId == 0) {
+            if (projectId == 0 || poolProjects[projectId].flowLastTime == block.timestamp) {
                 continue; // Empty or rates already updated
             }
 
@@ -330,6 +330,7 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         PoolProject storage project = poolProjects[_projectId];
         assert(project.flowLastTime <= block.timestamp);
         uint256 timePassed = block.timestamp - project.flowLastTime;
+
         return _rate = calculateRate(
             timePassed, // we assert it doesn't overflow above
             project.flowLastRate,
