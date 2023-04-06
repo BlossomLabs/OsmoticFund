@@ -34,7 +34,7 @@ contract BaseSetup is SetupScript {
     // token holders
     address mimeHolder0 = 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC;
     address mimeHolder2 = 0x70997970C51812dc3A010C7d01b50e0d17dc79C8;
-    address mimeHolder3 = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+    address unclaimedMimeHolder3 = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
 
     // merkle proofs
     bytes32[][4] holdersProofs = [
@@ -55,7 +55,7 @@ contract BaseSetup is SetupScript {
 
     uint256 currentRound = 0;
 
-    uint256 amount = 0x3635c9adc5dea00000;
+    uint256 unclaimedAmount = 0x3635c9adc5dea00000;
 
     // dependencies
     ICFAv1Forwarder cfaForwarder;
@@ -76,8 +76,13 @@ contract BaseSetup is SetupScript {
     // init data
     uint256 version = 1;
     bytes32 merkleRoot = 0x47c52ef48ec180964d648c3783e0b02202f16211392b986fbe2627f021657f2b; // init with: https://gist.github.com/0xGabi/4ca04edae9753ec32ffed7dc0cffe31e
-    uint256 roundDuration = 1 weeks;
-    OsmoticParams params = OsmoticParams({decay: 1, drop: 2, maxFlow: 3, minStakeRatio: 4});
+    uint256 roundDuration = 2 weeks;
+    OsmoticParams params = OsmoticParams({
+        decay: 999999197747000000, // 10 days (864000 seconds) to reach 50% of targetRate
+        drop: 2,
+        maxFlow: 19290123456, // 5% of Common Pool per month = Math.floor(0.05e18 / (30 * 24 * 60 * 60))
+        minStakeRatio: 25000000000000000 // 2.5% of Total Support = the minimum stake to start receiving funds
+    });
 
     function setUp() public virtual {
         // if in fork mode create and select fork
@@ -126,9 +131,8 @@ contract BaseSetup is SetupScript {
         mimeToken = MimeToken(controller.createMimeToken(tokenInitCall));
         vm.label(address(mimeToken), "mimeToken");
 
-        mimeToken.claim(0, mimeHolder0, amount, holdersProofs[0]);
-        mimeToken.claim(2, mimeHolder2, amount, holdersProofs[2]);
-        mimeToken.claim(3, mimeHolder3, amount, holdersProofs[3]);
+        mimeToken.claim(0, mimeHolder0, unclaimedAmount, holdersProofs[0]);
+        mimeToken.claim(2, mimeHolder2, unclaimedAmount, holdersProofs[2]);
 
         bytes memory poolInitCall = abi.encodeCall(
             OsmoticPool.initialize, (address(fundingToken), address(mimeToken), address(registry), params)

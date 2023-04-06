@@ -49,17 +49,6 @@ contract BaseSetUpWithProjectList is BaseSetup {
         pool.supportProjects(participantSupports);
     }
 
-    function supportProjects(address _account, uint256[] memory _projectIds, int256[] memory _supportDeltas) internal {
-        ProjectSupport[] memory participantSupports = new ProjectSupport[](_projectIds.length);
-
-        for (uint256 i = 0; i < _projectIds.length; i++) {
-            participantSupports[i] = ProjectSupport(_projectIds[i], _supportDeltas[i]);
-        }
-
-        vm.prank(_account);
-        pool.supportProjects(participantSupports);
-    }
-
     function supportAllProjects(address _account, int256 _supportDelta) internal {
         ProjectSupport[] memory participantSupports = new ProjectSupport[](pool.MAX_ACTIVE_PROJECTS());
 
