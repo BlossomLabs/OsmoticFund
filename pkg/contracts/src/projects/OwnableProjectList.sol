@@ -3,12 +3,15 @@ pragma solidity ^0.8.17;
 
 import {Ownable} from "@oz/access/Ownable.sol";
 
-import {IProjectList, Project, ProjectNotInList} from "../interfaces/IProjectList.sol";
+import {
+    IProjectList,
+    Project,
+    ProjectAlreadyInList,
+    ProjectDoesNotExist,
+    ProjectNotInList
+} from "../interfaces/IProjectList.sol";
 
 import {ProjectRegistry} from "./ProjectRegistry.sol";
-
-error ProjectDoesNotExist(uint256 projectId);
-error ProjectAlreadyInList(uint256 projectId);
 
 contract OwnableProjectList is Ownable, IProjectList {
     string public name;

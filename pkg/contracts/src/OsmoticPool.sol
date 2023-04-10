@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
+import "forge-std/console.sol";
+
 import {OwnableUpgradeable} from "@oz-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
 
@@ -52,8 +54,6 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     address public fundingToken;
     address public mimeToken;
 
-    OsmoticParams public osmoticParams;
-
     // projectId => PoolProject
     mapping(uint256 => PoolProject) public poolProjects;
 
@@ -100,50 +100,6 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         } else {
             revert InvalidMimeToken();
         }
-    }
-
-    /* *************************************************************************************************************************************/
-    /* ** Project Activation Function                                                                                                    ***/
-    /* *************************************************************************************************************************************/
-
-    function activateProject(uint256 _projectId) public {
-        if (!IProjectList(projectList).projectExists(_projectId)) {
-            revert ProjectNotInList(_projectId);
-        }
-
-        uint256 projectSupport = getProjectSupport(_projectId);
-
-        if (projectSupport == 0) {
-            revert ProjectWithoutSupport(_projectId);
-        }
-
-        uint256 minSupport = type(uint256).max;
-        uint256 minIndex = 0;
-
-        for (uint256 i = 0; i < activeProjectIds.length; i++) {
-            if (activeProjectIds[i] == _projectId) {
-                revert ProjectAlreadyActive(_projectId);
-            }
-
-            // If position i is empty, use it
-            if (activeProjectIds[i] == 0) {
-                _activateProject(i, _projectId);
-                return;
-            }
-
-            uint256 currentProjectSupport = getProjectSupport(activeProjectIds[i]);
-            if (currentProjectSupport < minSupport) {
-                minSupport = getProjectSupport(activeProjectIds[i]);
-                minIndex = i;
-            }
-        }
-
-        if (projectSupport < minSupport) {
-            revert ProjectNeedsMoreStake(_projectId, projectSupport, minSupport);
-        }
-
-        _deactivateProject(minIndex);
-        _activateProject(minIndex, _projectId);
     }
 
     /* *************************************************************************************************************************************/
@@ -194,6 +150,50 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
     ) external {
         IMimeToken(mimeToken).claim(index, account, amount, merkleProof);
         supportProjects(_projectSupports);
+    }
+
+    /* *************************************************************************************************************************************/
+    /* ** Project Activation Function                                                                                                    ***/
+    /* *************************************************************************************************************************************/
+
+    function activateProject(uint256 _projectId) public {
+        if (!IProjectList(projectList).projectExists(_projectId)) {
+            revert ProjectNotInList(_projectId);
+        }
+
+        uint256 projectSupport = getProjectSupport(_projectId);
+
+        if (projectSupport == 0) {
+            revert ProjectWithoutSupport(_projectId);
+        }
+
+        uint256 minSupport = type(uint256).max;
+        uint256 minIndex = 0;
+
+        for (uint256 i = 0; i < activeProjectIds.length; i++) {
+            if (activeProjectIds[i] == _projectId) {
+                revert ProjectAlreadyActive(_projectId);
+            }
+
+            // If position i is empty, use it
+            if (activeProjectIds[i] == 0) {
+                _activateProject(i, _projectId);
+                return;
+            }
+
+            uint256 currentProjectSupport = getProjectSupport(activeProjectIds[i]);
+            if (currentProjectSupport < minSupport) {
+                minSupport = getProjectSupport(activeProjectIds[i]);
+                minIndex = i;
+            }
+        }
+
+        if (projectSupport < minSupport) {
+            revert ProjectNeedsMoreStake(_projectId, projectSupport, minSupport);
+        }
+
+        _deactivateProject(minIndex);
+        _activateProject(minIndex, _projectId);
     }
 
     /* *************************************************************************************************************************************/
