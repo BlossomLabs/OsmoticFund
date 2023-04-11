@@ -13,7 +13,7 @@ contract OsmoticControllerSetClaimDuration is Setup {
         assertEq(controller.claimDuration(), newDuration, "claimDuration mismatch");
     }
 
-    function test_RevertWhen_CallingWithNotOwner() public {
+    function test_RevertWhen_SetClaimDurationAsNotOwner() public {
         vm.expectRevert("Ownable: caller is not the owner");
 
         vm.prank(notOwner);

@@ -6,6 +6,7 @@ import {OsmoticPoolSetup} from "../setups/OsmoticPoolSetup.sol";
 import {OsmoticFormula, OsmoticParams} from "../../src/OsmoticFormula.sol";
 
 contract OsmoticPoolSetOsmoticFormula is OsmoticPoolSetup {
+    address notOwner = makeAddr("notOwner");
     OsmoticParams NEW_OSMOTIC_PARAMS = OsmoticParams({decay: 1000, drop: 1001, maxFlow: 1002, minStakeRatio: 1003});
 
     event OsmoticParamsChanged(uint256 decay, uint256 drop, uint256 maxFlow, uint256 minStakeRatio);
@@ -24,6 +25,11 @@ contract OsmoticPoolSetOsmoticFormula is OsmoticPoolSetup {
         assertOsmoticParams(OsmoticFormula(pool), NEW_OSMOTIC_PARAMS);
     }
 
+    function test_RevertWhen_SettingOsmoticFormulaParamsAsNotOwner() public {
+        _expectRevertAsNotOwner();
+        pool.setOsmoticFormulaParams(NEW_OSMOTIC_PARAMS);
+    }
+
     function test_setOsmoticFormulaDecay() public {
         vm.expectEmit(true, true, true, true);
         emit OsmoticParamsChanged(
@@ -33,6 +39,11 @@ contract OsmoticPoolSetOsmoticFormula is OsmoticPoolSetup {
         pool.setOsmoticFormulaDecay(NEW_OSMOTIC_PARAMS.decay);
 
         assertOsmoticParam(pool.decay(), NEW_OSMOTIC_PARAMS.decay);
+    }
+
+    function test_RevertWhen_SettingOsmoticFormulaDecayAsNotOwner() public {
+        _expectRevertAsNotOwner();
+        pool.setOsmoticFormulaDecay(NEW_OSMOTIC_PARAMS.decay);
     }
 
     function test_setOsmoticFormulaDrop() public {
@@ -46,6 +57,11 @@ contract OsmoticPoolSetOsmoticFormula is OsmoticPoolSetup {
         assertOsmoticParam(pool.drop(), NEW_OSMOTIC_PARAMS.drop);
     }
 
+    function test_RevertWhen_SettingOsmoticFormulaDropAsNotOwner() public {
+        _expectRevertAsNotOwner();
+        pool.setOsmoticFormulaDrop(NEW_OSMOTIC_PARAMS.drop);
+    }
+
     function test_setOsmoticFormulaMaxFlow() public {
         vm.expectEmit(true, true, true, true);
         emit OsmoticParamsChanged(
@@ -57,6 +73,11 @@ contract OsmoticPoolSetOsmoticFormula is OsmoticPoolSetup {
         assertOsmoticParam(pool.maxFlow(), NEW_OSMOTIC_PARAMS.maxFlow);
     }
 
+    function test_RevertWhen_SettingOsmoticFormulaMaxFlowAsNotOwner() public {
+        _expectRevertAsNotOwner();
+        pool.setOsmoticFormulaMaxFlow(NEW_OSMOTIC_PARAMS.maxFlow);
+    }
+
     function test_setOsmoticFormulaMinStakeRatio() public {
         vm.expectEmit(true, true, true, true);
         emit OsmoticParamsChanged(
@@ -66,5 +87,15 @@ contract OsmoticPoolSetOsmoticFormula is OsmoticPoolSetup {
         pool.setOsmoticFormulaMinStakeRatio(NEW_OSMOTIC_PARAMS.minStakeRatio);
 
         assertOsmoticParam(pool.minStakeRatio(), NEW_OSMOTIC_PARAMS.minStakeRatio);
+    }
+
+    function test_RevertWhen_SettingOsmoticFormulaMinStakeRatioAsNotOwner() public {
+        _expectRevertAsNotOwner();
+        pool.setOsmoticFormulaMinStakeRatio(NEW_OSMOTIC_PARAMS.minStakeRatio);
+    }
+
+    function _expectRevertAsNotOwner() internal {
+        vm.prank(notOwner);
+        vm.expectRevert("Ownable: caller is not the owner");
     }
 }

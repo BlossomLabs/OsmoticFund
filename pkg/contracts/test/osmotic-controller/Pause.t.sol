@@ -14,4 +14,16 @@ contract OsmoticControllerPause is Setup {
         controller.unpause();
         assertTrue(!controller.paused());
     }
+
+    function test_RevertWhen_PausingAsNotOwner() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.prank(notOwner);
+        controller.pause();
+    }
+
+    function test_RevertWhen_UnpausingAsNotOwner() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.prank(notOwner);
+        controller.unpause();
+    }
 }

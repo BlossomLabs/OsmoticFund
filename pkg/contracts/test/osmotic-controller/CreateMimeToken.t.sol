@@ -53,4 +53,11 @@ contract OsmoticControllerCreateMimeToken is Setup {
             abi.encodeCall(MimeToken.initialize, (tokenName, tokenSymbol, MERKLE_ROOT, claimTimestamp, 9999));
         controller.createMimeToken(wrongInitCall);
     }
+
+    function test_RevertWhen_CreatingTokenWithPausedController() public {
+        controller.pause();
+
+        vm.expectRevert("Pausable: paused");
+        controller.createMimeToken(initCall);
+    }
 }
