@@ -12,8 +12,8 @@
   "MimeTokenFactories": [
     {
       "name": "MimeTokenFactory@0.0.1",
-      "address": "0x357938548a20B910ae1F59Dc09CE37eA48856254",
-      "startBlock": "8552411"
+      "address": "0x3D1Bebcfc55192bF6eE9E94F0EBA2fb54D5423aC",
+      "startBlock": "8689679"
     }
   ]
 }
