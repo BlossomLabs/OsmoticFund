@@ -1,0 +1,5 @@
+# Osmotic Controller
+{{#OsmoticController}}
+  {{> OsmoticController.template.yaml}}
+{{/OsmoticController}}
+# /Osmotic Controller

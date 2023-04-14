@@ -6,6 +6,7 @@ repository: https://github.com/BlossomLabs/OsmoticFund
 schema:
   file: ./schema.graphql
 dataSources:
+{{> OsmoticController.yaml}}
 {{> MimeTokenFactories.yaml}}
 {{> ProjectRegistry.yaml}}
 templates:

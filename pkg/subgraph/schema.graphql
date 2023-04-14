@@ -5,6 +5,7 @@ type OsmoticController @entity {
   version: Int!
   projectRegistry: ProjectRegistry!
   osmoticPools: [OsmoticPool!]! @derivedFrom(field: "osmoticController")
+  lists: [ProjectList!]! @derivedFrom(field: "osmoticController")
   tokens: [Token!]! @derivedFrom(field: "osmoticController")
 }
 
@@ -13,7 +14,6 @@ type ProjectRegistry @entity {
   id: ID!
   owner: Bytes!
   version: Int!
-  osmoticController: OsmoticController
   projects: [Project!]! @derivedFrom(field: "projectRegistry")
 }
 
@@ -32,6 +32,7 @@ type ProjectList @entity {
   id: ID!
   owner: Bytes
   name: String
+  osmoticController: OsmoticController!
   projects: [ProjectProjectList!]! @derivedFrom(field: "projectList")
   osmoticPools: [OsmoticPool!]! @derivedFrom(field: "projectList")
 }
@@ -51,7 +52,7 @@ type OsmoticPool @entity {
   osmoticController: OsmoticController!
   maxActiveProjects: Int!
   fundingToken: Token!
-  governanceToken: Token!
+  mimeToken: Token!
   projectList: ProjectList!
   osmoticParams: OsmoticParams!
   poolProjects: [PoolProject!]! @derivedFrom(field: "osmoticPool")

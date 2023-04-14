@@ -32,15 +32,18 @@ export function buildProjectProjectListId(
 }
 
 export function loadOrCreateProjectRegistryEntity(
-  projectRegistry: Address
+  registryAddress: Address
 ): ProjectRegistryEntity {
-  const projectRegistryId = buildProjectRegistryId(projectRegistry);
+  const projectRegistryId = buildProjectRegistryId(registryAddress);
 
   let projectRegistryEntity = ProjectRegistryEntity.load(projectRegistryId);
 
   if (projectRegistryEntity == null) {
     projectRegistryEntity = new ProjectRegistryEntity(projectRegistryId);
-    projectRegistryEntity.version = -1
+
+    const projectRegistryContract = ProjectRegistryEntity.bind(registryAddress);
+
+    projectRegistryEntity.version = projectRegistryContract.version();
     projectRegistryEntity.owner = Bytes.fromHexString(ZERO_ADDR)
   }
 

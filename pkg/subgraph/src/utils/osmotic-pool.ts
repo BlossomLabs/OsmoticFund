@@ -49,14 +49,17 @@ export function loadOrCreateOsmoticPool(
 
   if (osmoticPool == null) {
     osmoticPool = new OsmoticPoolEntity(id);
+
+    const osmoticPoolContract = OsmoticPoolEntity.bind(poolAddress)
+
     osmoticPool.address = poolAddress;
     osmoticPool.owner = Bytes.fromHexString(ZERO_ADDR);
-    osmoticPool.osmoticController = "";
-    osmoticPool.maxActiveProjects = 0;
-    osmoticPool.fundingToken = "";
-    osmoticPool.governanceToken = "";
-    osmoticPool.projectList = "";
-    osmoticPool.osmoticParams = "";
+    osmoticPool.osmoticController = osmoticPoolContract.controller();
+    osmoticPool.maxActiveProjects = osmoticPoolContract.MAX_ACTIVE_PROJECTS();
+    osmoticPool.fundingToken = osmoticPoolContract.fundingToken();
+    osmoticPool.mimeToken = osmoticPoolContract.mimeToken();
+    osmoticPool.projectList = osmoticPoolContract.projectList();
+    osmoticPool.osmoticParams = loadOrCreateOsmoticParams(poolAddress).id;
 
     osmoticPool.save();
   }
@@ -135,11 +138,14 @@ export function loadOrCreateOsmoticParams(
 
   if (osmoticParams === null) {
     osmoticParams = new OsmoticParamsEntity(id);
+
+    const osmoticPoolContract = OsmoticPoolEntity.bind(osmoticPool)
+
     osmoticParams.osmoticPool = osmoticPool.toHexString();
-    osmoticParams.decay = BigInt.fromI32(0);
-    osmoticParams.drop = BigInt.fromI32(0);
-    osmoticParams.maxFlow = BigInt.fromI32(0);
-    osmoticParams.minStakeRatio = BigInt.fromI32(0);
+    osmoticParams.decay = osmoticPoolContract.decay();
+    osmoticParams.drop = osmoticPoolContract.drop();
+    osmoticParams.maxFlow = osmoticPoolContract.maxFlow();
+    osmoticParams.minStakeRatio = osmoticPoolContract.minStakeRatio();
   }
 
   return osmoticParams;
