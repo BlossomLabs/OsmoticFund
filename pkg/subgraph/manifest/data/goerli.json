@@ -1,11 +1,12 @@
 {
-  "network": "goerli",
-  "description": "Subgraph for the Osmotic Protocol",
-  "OsmoticController": [
-    {
-      "name": "OsmoticController",
-      "address": "0x3D1Bebcfc55192bF6eE9E94F0EBA2fb54D5423aC",
-      "startBlock": "8689679"
-    }
-  ]
-}
+    "network": "goerli",
+    "description": "Subgraph for the Osmotic Protocol",
+    "OsmoticController": [
+      {
+        "name": "OsmoticController",
+        "address": "0xF1287266c60586e9606DD493d2F9B888bf5284c3",
+        "startBlock": "8689679"
+      }
+    ]
+  }
+  

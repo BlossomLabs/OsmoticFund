@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "anvil --rpc-url https://rpc.ankr.com/eth_goerli --fork-block-number 8689679",
+    "dev": "anvil",
     "build": "forge build --sizes",
     "lint": "forge fmt",
     "test": "forge test -v",

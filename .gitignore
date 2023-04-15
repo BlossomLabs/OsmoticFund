@@ -47,3 +47,6 @@ pkg/subgraph/generated
 subgraph.yaml
 pkg/subgraph/tests/.*
 matchstick
+
+# services
+pkg/services/graph-node/data

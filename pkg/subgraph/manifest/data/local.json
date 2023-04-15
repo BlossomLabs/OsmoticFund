@@ -4,8 +4,8 @@
   "OsmoticController": [
     {
       "name": "OsmoticController",
-      "address": "0xE5D42D6E49e8d2C2089D769Ef10D35f45a3c1cCb",
-      "startBlock": "8689679"
+      "address": "0x0165878A594ca255338adfa4d48449f69242Eb8F",
+      "startBlock": "0"
     }
   ]
 }

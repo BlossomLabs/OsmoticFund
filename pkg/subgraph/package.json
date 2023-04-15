@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "build": "graph codegen && graph build",
-    "create-local": "graph create --node http://localhost:8020/ blossom/counter",
-    "remove-local": "graph remove --node http://localhost:8020/ blossom/counter",
-    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 blossom/counter",
+    "create-local": "graph create --node http://localhost:8020/ blossom/osmotic-fund",
+    "remove-local": "graph remove --node http://localhost:8020/ blossom/osmotic-fund",
+    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 blossom/osmotic-fund",
+    "manifest-local": "scripts/build-manifest.sh local",
     "manifest-goerli": "scripts/build-manifest.sh goerli",
     "test": "graph test"
   },

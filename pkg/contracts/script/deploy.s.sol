@@ -13,6 +13,7 @@ forge script script/deploy.s.sol --rpc-url http://127.0.0.1:8545 --private-key 0
 contract deploy is SetupScript {
     SetupConfig public config;
 
+    // goerli address
     address constant CFA_V1_FORWARDER_ADDRESS = 0xcfA132E353cB4E398080B9700609bb008eceB125;
 
     function setUp() public {
