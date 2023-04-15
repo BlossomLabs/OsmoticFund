@@ -16,10 +16,7 @@ cat $DATA
 
 
 mustache \
-  -p manifest/templates/sources/MimeTokenFactory.yaml \
-  -p manifest/templates/sources/ProjectRegistry.yaml \
   -p manifest/templates/sources/OsmoticController.yaml \
-  -p manifest/templates/contracts/MimeTokenFactory.template.yaml \
   -p manifest/templates/contracts/ProjectRegistry.template.yaml \
   -p manifest/templates/contracts/OsmoticController.template.yaml \
   -p manifest/templates/contracts/OwnableProjectList.template.yaml \

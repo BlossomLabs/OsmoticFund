@@ -1,7 +1,8 @@
 import {
   ProjectUpdated as ProjectUpdatedEvent,
   OwnershipTransferred as OwnershipTransferredEvent,
-} from "../../generated/ProjectRegistry/ProjectRegistry";
+} from "../../generated/templates/ProjectRegistry/ProjectRegistry";
+
 import {
   loadOrCreateProjectEntity,
   loadOrCreateProjectRegistryEntity,

@@ -32,6 +32,7 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
     /* ** Events                                                                                                                         ***/
     /* *************************************************************************************************************************************/
 
+    event MimeTokenCreated(address indexed token);
     event OsmoticPoolCreated(address indexed pool);
     event ProjectListCreated(address indexed list);
 
@@ -117,7 +118,6 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
     }
 
     function createMimeToken(bytes calldata _initPayload) external whenNotPaused returns (address token_) {
-        // We avoid emitting the creation event as it is already emitted by the MimeTokenFactory
         token_ = MimeTokenFactory(mimeTokenFactory).createMimeToken(_initPayload);
 
         require(MimeToken(token_).timestamp() == claimTimestamp, "OsmoticController: Invalid timestamp for token");
@@ -128,5 +128,7 @@ contract OsmoticController is Initializable, OwnableUpgradeable, PausableUpgrade
         MimeToken(token_).transferOwnership(msg.sender);
 
         isToken[token_] = true;
+
+        emit MimeTokenCreated(token_);
     }
 }

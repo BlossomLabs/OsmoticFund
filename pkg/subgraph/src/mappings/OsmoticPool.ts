@@ -10,6 +10,8 @@ import {
   ProjectSupportUpdated as ProjectSupportUpdatedEvent,
 } from "../../generated/templates/OsmoticPool/OsmoticPool";
 import { OsmoticController } from "../../generated/templates/OsmoticPool/OsmoticController";
+import { PoolProject as PoolProjectEntity } from "../../generated/schema";
+
 import {
   buildOsmoticPoolId,
   loadOrCreateOsmoticParams,
@@ -19,7 +21,6 @@ import {
   loadOrCreatePoolProjectSupport,
 } from "../utils/osmotic-pool";
 import { buildProjectId } from "../utils/project";
-import { PoolProject as PoolProjectEntity } from "../../generated/schema";
 
 export function handleProjectActivated(event: ProjectActivatedEvent): void {
   const poolProject = getPoolProjectEntity(
@@ -103,9 +104,7 @@ export function handleOsmoticParamsChanged(
 export function handleOwnershipTransferred(
   event: OwnershipTransferredEvent
 ): void {
-  const osmoticPool = loadOrCreateOsmoticPool(
-    event.address
-  );
+  const osmoticPool = loadOrCreateOsmoticPool(event.address);
 
   osmoticPool.owner = event.params.newOwner;
 
@@ -119,9 +118,7 @@ function getPoolProjectEntity(
   const osmoticPool = OsmoticPool.bind(poolAddress);
   const osmoticController = OsmoticController.bind(osmoticPool.controller());
   const projectRegistryAddress = osmoticController.projectRegistry();
-  const osmoticPoolId = buildOsmoticPoolId(
-    poolAddress
-  );
+  const osmoticPoolId = buildOsmoticPoolId(poolAddress);
   const projectId = buildProjectId(projectRegistryAddress, projectIndex);
 
   return loadOrCreatePoolProject(osmoticPoolId, projectId);

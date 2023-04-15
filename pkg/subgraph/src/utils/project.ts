@@ -1,10 +1,13 @@
 import { Address, BigInt, Bytes } from "@graphprotocol/graph-ts";
+
 import {
   ProjectRegistry as ProjectRegistryEntity,
   Project as ProjectEntity,
   ProjectList as ProjectListEntity,
   ProjectProjectList as ProjectProjectListEntity,
 } from "../../generated/schema";
+import { OwnableProjectList } from "../../generated/templates/OwnableProjectList/OwnableProjectList";
+import { ProjectRegistry } from "../../generated/templates/ProjectRegistry/ProjectRegistry";
 
 import { formatAddress, join, ZERO_ADDR } from "./ids";
 
@@ -12,7 +15,10 @@ export function buildProjectRegistryId(projectRegistry: Address): string {
   return formatAddress(projectRegistry);
 }
 
-export function buildProjectId(projectRegistry: Address, projectIndex: BigInt): string {
+export function buildProjectId(
+  projectRegistry: Address,
+  projectIndex: BigInt
+): string {
   return join([formatAddress(projectRegistry), projectIndex.toString()]);
 }
 
@@ -41,10 +47,12 @@ export function loadOrCreateProjectRegistryEntity(
   if (projectRegistryEntity == null) {
     projectRegistryEntity = new ProjectRegistryEntity(projectRegistryId);
 
-    const projectRegistryContract = ProjectRegistryEntity.bind(registryAddress);
+    const projectRegistryContract = ProjectRegistry.bind(registryAddress);
 
-    projectRegistryEntity.version = projectRegistryContract.version();
-    projectRegistryEntity.owner = Bytes.fromHexString(ZERO_ADDR)
+    projectRegistryEntity.version = projectRegistryContract.version().toI32();
+    projectRegistryEntity.owner = projectRegistryContract.owner();
+
+    projectRegistryEntity.save();
   }
 
   return projectRegistryEntity;
@@ -64,6 +72,8 @@ export function loadOrCreateProjectEntity(
     projectEntity.beneficiary = Bytes.fromHexString(ZERO_ADDR);
     projectEntity.contentHash = Bytes.fromHexString(ZERO_ADDR);
     projectEntity.projectRegistry = buildProjectRegistryId(projectRegistry);
+
+    projectEntity.save();
   }
 
   return projectEntity;
@@ -78,8 +88,13 @@ export function loadOrCreateProjectListEntity(
 
   if (projectListEntity === null) {
     projectListEntity = new ProjectListEntity(projectListId);
-    projectListEntity.owner = Bytes.fromHexString(ZERO_ADDR);
-    projectListEntity.name = "";
+
+    const projectListContract = OwnableProjectList.bind(projectList);
+
+    projectListEntity.owner = projectListContract.owner();
+    projectListEntity.name = projectListContract.name();
+
+    projectListEntity.save();
   }
 
   return projectListEntity;
@@ -96,13 +111,21 @@ export function loadOrCreateProjectProjectListEntity(
     projectList
   );
 
-  let projectProjectListEntity = ProjectProjectListEntity.load(projectProjectListId)
+  let projectProjectListEntity =
+    ProjectProjectListEntity.load(projectProjectListId);
 
-  if ( projectProjectListEntity === null) {
-    projectProjectListEntity = new ProjectProjectListEntity(projectProjectListId)
-    projectProjectListEntity.project = buildProjectId(projectRegistry, projectId)
-    projectProjectListEntity.projectList = buildProjectListId(projectList)
+  if (projectProjectListEntity === null) {
+    projectProjectListEntity = new ProjectProjectListEntity(
+      projectProjectListId
+    );
+    projectProjectListEntity.project = buildProjectId(
+      projectRegistry,
+      projectId
+    );
+    projectProjectListEntity.projectList = buildProjectListId(projectList);
+
+    projectProjectListEntity.save();
   }
 
-  return projectProjectListEntity
+  return projectProjectListEntity;
 }

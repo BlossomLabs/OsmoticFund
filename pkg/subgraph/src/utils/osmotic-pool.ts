@@ -1,4 +1,5 @@
 import { Address, BigInt, Bytes } from "@graphprotocol/graph-ts";
+
 import {
   OsmoticParams as OsmoticParamsEntity,
   OsmoticPool as OsmoticPoolEntity,
@@ -6,14 +7,13 @@ import {
   PoolProjectParticipantSupport as PoolProjectParticipantSupportEntity,
   PoolProjectSupport as PoolProjectSupportEntity,
 } from "../../generated/schema";
+import { OsmoticPool } from "../../generated/templates/OsmoticPool/OsmoticPool";
 
-import { formatAddress, join, ZERO_ADDR } from "../utils/ids";
+import { formatAddress, join, ZERO_ADDR } from "./ids";
 
-export function buildOsmoticPoolId(
-  poolAddress: Address
-): string {
-  return formatAddress(poolAddress)
-}1
+export function buildOsmoticPoolId(poolAddress: Address): string {
+  return formatAddress(poolAddress);
+}
 
 export function buildPoolProjectId(
   osmoticPoolId: string,
@@ -50,15 +50,19 @@ export function loadOrCreateOsmoticPool(
   if (osmoticPool == null) {
     osmoticPool = new OsmoticPoolEntity(id);
 
-    const osmoticPoolContract = OsmoticPoolEntity.bind(poolAddress)
+    const osmoticPoolContract = OsmoticPool.bind(poolAddress);
 
     osmoticPool.address = poolAddress;
     osmoticPool.owner = Bytes.fromHexString(ZERO_ADDR);
-    osmoticPool.osmoticController = osmoticPoolContract.controller();
+    osmoticPool.osmoticController = formatAddress(
+      osmoticPoolContract.controller()
+    );
     osmoticPool.maxActiveProjects = osmoticPoolContract.MAX_ACTIVE_PROJECTS();
-    osmoticPool.fundingToken = osmoticPoolContract.fundingToken();
-    osmoticPool.mimeToken = osmoticPoolContract.mimeToken();
-    osmoticPool.projectList = osmoticPoolContract.projectList();
+    osmoticPool.fundingToken = formatAddress(
+      osmoticPoolContract.fundingToken()
+    );
+    osmoticPool.mimeToken = formatAddress(osmoticPoolContract.mimeToken());
+    osmoticPool.projectList = formatAddress(osmoticPoolContract.projectList());
     osmoticPool.osmoticParams = loadOrCreateOsmoticParams(poolAddress).id;
 
     osmoticPool.save();
@@ -102,6 +106,8 @@ export function loadOrCreatePoolProjectSupport(
     poolProjectSupport.poolProject = poolProjectId;
     poolProjectSupport.round = round;
     poolProjectSupport.support = BigInt.fromI32(0);
+
+    poolProjectSupport.save();
   }
 
   return poolProjectSupport;
@@ -124,6 +130,8 @@ export function loadOrCreatePoolProjectParticipantSupport(
     poolProjectParticipantSupport.poolProjectSupport = poolProjectSupportId;
     poolProjectParticipantSupport.participant = participant;
     poolProjectParticipantSupport.support = BigInt.fromI32(0);
+
+    poolProjectParticipantSupport.save();
   }
 
   return poolProjectParticipantSupport;
@@ -139,13 +147,15 @@ export function loadOrCreateOsmoticParams(
   if (osmoticParams === null) {
     osmoticParams = new OsmoticParamsEntity(id);
 
-    const osmoticPoolContract = OsmoticPoolEntity.bind(osmoticPool)
+    const osmoticPoolContract = OsmoticPool.bind(osmoticPool);
 
-    osmoticParams.osmoticPool = osmoticPool.toHexString();
+    osmoticParams.osmoticPool = formatAddress(osmoticPool);
     osmoticParams.decay = osmoticPoolContract.decay();
     osmoticParams.drop = osmoticPoolContract.drop();
     osmoticParams.maxFlow = osmoticPoolContract.maxFlow();
     osmoticParams.minStakeRatio = osmoticPoolContract.minStakeRatio();
+
+    osmoticParams.save();
   }
 
   return osmoticParams;

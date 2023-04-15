@@ -7,8 +7,7 @@ schema:
   file: ./schema.graphql
 dataSources:
 {{> OsmoticController.yaml}}
-{{> MimeTokenFactories.yaml}}
-{{> ProjectRegistry.yaml}}
 templates:
+  {{> ProjectRegistry.template.yaml}}  
   {{> OwnableProjectList.template.yaml}}
   {{> OsmoticPool.template.yaml}}

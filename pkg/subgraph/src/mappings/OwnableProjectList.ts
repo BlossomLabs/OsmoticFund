@@ -5,6 +5,7 @@ import {
   ListUpdated as ListUpdatedEvent,
   OwnershipTransferred as OwnershipTransferredEvent,
 } from "../../generated/templates/OwnableProjectList/OwnableProjectList";
+
 import {
   loadOrCreateProjectListEntity,
   loadOrCreateProjectProjectListEntity,

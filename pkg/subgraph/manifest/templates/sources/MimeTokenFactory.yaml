@@ -1,5 +1,0 @@
-# Mime Token Factory
-{{#MimeTokenFactory}}
-  {{> MimeTokenFactory.template.yaml}}
-{{/MimeTokenFactory}}
-# /Mime Token Factory

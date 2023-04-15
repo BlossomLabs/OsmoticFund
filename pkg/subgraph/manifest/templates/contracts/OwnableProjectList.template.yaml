@@ -1,20 +1,9 @@
 # OwnableProjectList
 - kind: ethereum/contract
-  {{#name}}
-  name: {{name}}
-  {{/name}}
-  {{^name}}
   name: OwnableProjectList
-  {{/name}}
   network: {{network}}
   source:
     abi: OwnableProjectList
-    {{#address}}
-    address: '{{address}}'
-    {{/address}}
-    {{#startBlock}}
-    startBlock: {{startBlock}}
-    {{/startBlock}}
   mapping:
     kind: ethereum/events
     apiVersion: 0.0.5
