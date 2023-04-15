@@ -8,5 +8,4 @@ src = 'pkg/contracts/src'
 test = 'pkg/contracts/test'
 out = 'pkg/contracts/out'
 broadcast = 'pkg/contracts/broadcast'
-deployments = 'pkg/contracts/deployments'
 fs_permissions = [{ access = "read-write", path = "./" }]
