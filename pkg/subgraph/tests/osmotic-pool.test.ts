@@ -4,14 +4,9 @@ import {
   beforeEach,
   clearStore,
   describe,
-  logStore,
   test,
 } from "matchstick-as";
 
-import {
-  PoolProjectSupport as PoolProjectSupportEntity,
-  PoolProjectParticipantSupport as PoolProjectParticipantSupportEntity,
-} from "../generated/schema";
 import { OwnershipTransferred } from "../generated/templates/OsmoticPool/OsmoticPool";
 import {
   handleFlowSynced,

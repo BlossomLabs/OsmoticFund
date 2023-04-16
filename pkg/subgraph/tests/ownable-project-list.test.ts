@@ -1,11 +1,5 @@
 import { Address, BigInt } from "@graphprotocol/graph-ts";
-import {
-  assert,
-  beforeEach,
-  clearStore,
-  describe,
-  test,
-} from "matchstick-as";
+import { assert, beforeEach, clearStore, describe, test } from "matchstick-as";
 import { ProjectProjectList as ProjectProjectListEntity } from "../generated/schema";
 
 import { OwnershipTransferred } from "../generated/templates/OwnableProjectList/OwnableProjectList";
@@ -13,8 +7,17 @@ import {
   handleListUpdated,
   handleOwnershipTransferred,
 } from "../src/mappings/OwnableProjectList";
-import { buildProjectId, buildProjectListId, buildProjectProjectListId } from "../src/utils/project";
-import { alice, bob, createOwnershipTransferredEvent, mockedProjectRegistryRPCCall } from "./utils";
+import {
+  buildProjectId,
+  buildProjectListId,
+  buildProjectProjectListId,
+} from "../src/utils/project";
+import {
+  alice,
+  bob,
+  createOwnershipTransferredEvent,
+  mockedProjectRegistryRPCCall,
+} from "./utils";
 import { createListUpdatedEvent } from "./utils/events/project-list";
 
 describe("OwnableProjectList mappings", () => {

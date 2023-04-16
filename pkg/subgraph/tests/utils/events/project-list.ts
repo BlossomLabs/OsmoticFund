@@ -4,7 +4,10 @@ import { newMockEvent } from "matchstick-as";
 import { ListUpdated as ListUpdatedEvent } from "../../../generated/templates/OwnableProjectList/OwnableProjectList";
 import { getBigIntEventParam, getBooleanEventParam } from "../converters";
 
-export function createListUpdatedEvent(projectId: BigInt, included: boolean): ListUpdatedEvent  {
+export function createListUpdatedEvent(
+  projectId: BigInt,
+  included: boolean
+): ListUpdatedEvent {
   // @ts-ignore
   const listUpdatedEvent = changetype<ListUpdatedEvent>(newMockEvent());
 

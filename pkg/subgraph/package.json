@@ -10,12 +10,13 @@
     "manifest-local": "scripts/build-manifest.sh local",
     "manifest-goerli": "scripts/build-manifest.sh goerli",
     "deploy-goerli": "scripts/deploy.sh blossomlabs osmoticfund goerli",
-    "test": "graph test"
+    "test": "graph test --version 0.5.4"
   },
   "devDependencies": {
     "@graphprotocol/graph-cli": "^0.46.1",
     "@graphprotocol/graph-ts": "^0.29.3",
-    "matchstick-as": "^0.5.1",
+    "assemblyscript": "0.19.20",
+    "matchstick-as": "^0.5.2",
     "mustache": "^4.2.0"
   }
 }

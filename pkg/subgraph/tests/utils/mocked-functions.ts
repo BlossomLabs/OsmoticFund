@@ -12,7 +12,7 @@ export function mockedTokenRPCCalls(
 ): void {
   mockedTokenDecimals(address, decimals);
   mockedTokenName(address, name);
-  mockedTokenSymbol(address, symbol)
+  mockedTokenSymbol(address, symbol);
 }
 
 /**
@@ -70,7 +70,10 @@ export function mockedTokenDecimals(
     .returns([getETHInt32(expectedDecimals)]);
 }
 
-export function mockedProjectRegistryRPCCall(contractAddress: string, expectedProjectRegistryAddress: string): void {
+export function mockedProjectRegistryRPCCall(
+  contractAddress: string,
+  expectedProjectRegistryAddress: string
+): void {
   createMockedFunction(
     Address.fromString(contractAddress),
     "projectRegistry",
@@ -80,7 +83,10 @@ export function mockedProjectRegistryRPCCall(contractAddress: string, expectedPr
     .returns([getETHAddress(expectedProjectRegistryAddress)]);
 }
 
-export function mockedOsmoticControllerRPCCall(contractAddress: string, expectedControllerAddress: string): void {
+export function mockedOsmoticControllerRPCCall(
+  contractAddress: string,
+  expectedControllerAddress: string
+): void {
   createMockedFunction(
     Address.fromString(contractAddress),
     "controller",

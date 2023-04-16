@@ -1,11 +1,5 @@
 import { BigInt, Bytes } from "@graphprotocol/graph-ts";
-import {
-  assert,
-  beforeEach,
-  clearStore,
-  describe,
-  test,
-} from "matchstick-as";
+import { assert, beforeEach, clearStore, describe, test } from "matchstick-as";
 
 import { buildProjectId } from "../src/utils/project";
 import {
@@ -18,7 +12,7 @@ import {
   createOwnershipTransferredEvent,
   stringToBytes,
 } from "./utils";
-import { OwnershipTransferred } from "../generated/ProjectRegistry/ProjectRegistry";
+import { OwnershipTransferred } from "../generated/templates/ProjectRegistry/ProjectRegistry";
 
 describe("when mapping ProjectRegistry events", () => {
   beforeEach(() => {

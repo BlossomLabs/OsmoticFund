@@ -1,6 +1,6 @@
 import { BigInt, Bytes } from "@graphprotocol/graph-ts";
 import { newMockEvent } from "matchstick-as";
-import { ProjectUpdated as ProjectUpdatedEvent } from "../../../generated/ProjectRegistry/ProjectRegistry";
+import { ProjectUpdated as ProjectUpdatedEvent } from "../../../generated/templates/ProjectRegistry/ProjectRegistry";
 import {
   getAddressEventParam,
   getBigIntEventParam,
