@@ -93,6 +93,7 @@ export function loadOrCreateProjectListEntity(
 
     projectListEntity.owner = projectListContract.owner();
     projectListEntity.name = projectListContract.name();
+    projectListEntity.osmoticController = "";
 
     projectListEntity.save();
   }
