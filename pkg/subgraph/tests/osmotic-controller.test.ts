@@ -1,7 +1,22 @@
 import { assert, beforeEach, clearStore, describe, test } from "matchstick-as";
 
-import { handleMimeTokenCreated } from "../src/mappings/OsmoticController";
-import { createMimeTokenCreatedEvent, mockedTokenRPCCalls } from "./utils";
+import {
+  handleMimeTokenCreated,
+  handleOwnershipTransferred,
+} from "../src/mappings/OsmoticController";
+import {
+  alice,
+  bob,
+  createMimeTokenCreatedEvent,
+  createOwnershipTransferredEvent,
+  generateAddress,
+  mockedProjectRegistryRPCCall,
+  mockedTokenRPCCalls,
+  mockedVersionRPCCall,
+} from "./utils";
+import { OwnershipTransferred } from "../generated/OsmoticController/OsmoticController";
+import { buildOsmoticControllerId } from "../src/utils/osmotic-controller";
+import { buildProjectRegistryId } from "../src/utils/project";
 
 describe("when mapping OsmoticController events", () => {
   beforeEach(() => {
@@ -28,5 +43,27 @@ describe("when mapping OsmoticController events", () => {
     );
     assert.fieldEquals("Token", mimeToken, "name", tokenName);
     assert.fieldEquals("Token", mimeToken, "symbol", tokenSymbol);
+  });
+
+  // TODO: test OsmoticPoolCreated and ProjectListCreated events
+
+  test("should map OwnershipTransferred correctly", () => {
+    const projectRegistryAddress = generateAddress(1);
+    const projectRegistryId = buildProjectRegistryId(projectRegistryAddress);
+
+    const ownershipTransferredEvent =
+      createOwnershipTransferredEvent<OwnershipTransferred>(alice, bob);
+    const osmoticControllerAddress = ownershipTransferredEvent.address;
+    const osmoticControllerId = buildOsmoticControllerId(
+      osmoticControllerAddress
+    );
+
+    mockedVersionRPCCall(osmoticControllerId, 1);
+    mockedProjectRegistryRPCCall(osmoticControllerId, projectRegistryId);
+    mockedVersionRPCCall(projectRegistryId, 1);
+
+    handleOwnershipTransferred(ownershipTransferredEvent);
+
+    assert.fieldEquals("OsmoticController", osmoticControllerId, "owner", bob);
   });
 });

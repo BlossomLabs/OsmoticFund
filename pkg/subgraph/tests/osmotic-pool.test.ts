@@ -1,11 +1,5 @@
 import { Address, BigInt } from "@graphprotocol/graph-ts";
-import {
-  assert,
-  beforeEach,
-  clearStore,
-  describe,
-  test,
-} from "matchstick-as";
+import { assert, beforeEach, clearStore, describe, test } from "matchstick-as";
 
 import { OwnershipTransferred } from "../generated/templates/OsmoticPool/OsmoticPool";
 import {
@@ -33,7 +27,11 @@ import {
   createProjectSupportUpdated,
   FALSE,
   generateAddress,
+  mockedFundingTokenRPCCall,
+  mockedMaxActiveProjectsRPCCall,
+  mockedMimeTokenRPCCall,
   mockedOsmoticControllerRPCCall,
+  mockedProjectListRPCCall,
   mockedProjectRegistryRPCCall,
   TRUE,
 } from "./utils";
@@ -281,10 +279,23 @@ describe("OsmoticPool mappings", () => {
         newOwner.toHexString()
       );
     const osmoticPoolAddress = ownershipTransferredEvent.address;
+    const osmoticPoolEntityId = buildOsmoticPoolId(osmoticPoolAddress);
+
+    mockedFundingTokenRPCCall(
+      osmoticPoolEntityId,
+      generateAddress(1).toHexString()
+    );
+    mockedProjectListRPCCall(
+      osmoticPoolEntityId,
+      generateAddress(2).toHexString()
+    );
+    mockedMimeTokenRPCCall(
+      osmoticPoolEntityId,
+      generateAddress(3).toHexString()
+    );
+    mockedMaxActiveProjectsRPCCall(osmoticPoolEntityId, 25);
 
     handleOwnershipTransferred(ownershipTransferredEvent);
-
-    const osmoticPoolEntityId = buildOsmoticPoolId(osmoticPoolAddress);
 
     assert.fieldEquals(
       "OsmoticPool",

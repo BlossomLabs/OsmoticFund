@@ -1,10 +1,10 @@
-import { Address } from "@graphprotocol/graph-ts";
+import { Address, Bytes } from "@graphprotocol/graph-ts";
 
 import { OsmoticController as OsmoticControllerEntity } from "../../generated/schema";
 import { ProjectRegistry as ProjectRegistryTemplate } from "../../generated/templates";
 import { OsmoticController } from "../../generated/OsmoticController/OsmoticController";
 
-import { formatAddress } from "./ids";
+import { ZERO_ADDR, formatAddress } from "./ids";
 import { loadOrCreateProjectRegistryEntity } from "./project";
 
 export function buildOsmoticControllerId(osmoticController: Address): string {
@@ -26,7 +26,7 @@ export function loadOrCreateOsmoticController(
     );
 
     osmoticController = new OsmoticControllerEntity(id);
-    osmoticController.owner = osmoticContract.owner();
+    osmoticController.owner = Bytes.fromHexString(ZERO_ADDR);
     osmoticController.version = osmoticContract.version().toI32();
     osmoticController.projectRegistry = projectRegistry.id;
     osmoticController.save();

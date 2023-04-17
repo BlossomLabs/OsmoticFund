@@ -147,13 +147,11 @@ export function loadOrCreateOsmoticParams(
   if (osmoticParams === null) {
     osmoticParams = new OsmoticParamsEntity(id);
 
-    const osmoticPoolContract = OsmoticPool.bind(osmoticPool);
-
     osmoticParams.osmoticPool = formatAddress(osmoticPool);
-    osmoticParams.decay = osmoticPoolContract.decay();
-    osmoticParams.drop = osmoticPoolContract.drop();
-    osmoticParams.maxFlow = osmoticPoolContract.maxFlow();
-    osmoticParams.minStakeRatio = osmoticPoolContract.minStakeRatio();
+    osmoticParams.decay = BigInt.fromI32(0);
+    osmoticParams.drop = BigInt.fromI32(0);
+    osmoticParams.maxFlow = BigInt.fromI32(0);
+    osmoticParams.minStakeRatio = BigInt.fromI32(0);
 
     osmoticParams.save();
   }

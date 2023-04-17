@@ -50,7 +50,7 @@ export function loadOrCreateProjectRegistryEntity(
     const projectRegistryContract = ProjectRegistry.bind(registryAddress);
 
     projectRegistryEntity.version = projectRegistryContract.version().toI32();
-    projectRegistryEntity.owner = projectRegistryContract.owner();
+    projectRegistryEntity.owner = Bytes.fromHexString(ZERO_ADDR);
 
     projectRegistryEntity.save();
   }
@@ -91,7 +91,7 @@ export function loadOrCreateProjectListEntity(
 
     const projectListContract = OwnableProjectList.bind(projectList);
 
-    projectListEntity.owner = projectListContract.owner();
+    projectListEntity.owner = Bytes.fromHexString(ZERO_ADDR);
     projectListEntity.name = projectListContract.name();
     projectListEntity.osmoticController = "";
 

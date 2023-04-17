@@ -11,6 +11,7 @@ import {
   createProjectUpdatedEvent,
   createOwnershipTransferredEvent,
   stringToBytes,
+  mockedVersionRPCCall,
 } from "./utils";
 import { OwnershipTransferred } from "../generated/templates/ProjectRegistry/ProjectRegistry";
 
@@ -22,11 +23,12 @@ describe("when mapping ProjectRegistry events", () => {
   test("should map OwnershipTransferred correctly", () => {
     const ownershipTransferredEvent =
       createOwnershipTransferredEvent<OwnershipTransferred>(alice, bob);
-
-    handleOwnershipTransferred(ownershipTransferredEvent);
-
     const projectRegistryEntityId =
       ownershipTransferredEvent.address.toHexString();
+
+    mockedVersionRPCCall(projectRegistryEntityId, 1);
+
+    handleOwnershipTransferred(ownershipTransferredEvent);
 
     assert.fieldEquals(
       "ProjectRegistry",

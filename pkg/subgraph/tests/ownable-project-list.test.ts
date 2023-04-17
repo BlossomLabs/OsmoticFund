@@ -16,6 +16,7 @@ import {
   alice,
   bob,
   createOwnershipTransferredEvent,
+  mockedProjectListNameRPCCall,
   mockedProjectRegistryRPCCall,
 } from "./utils";
 import { createListUpdatedEvent } from "./utils/events/project-list";
@@ -28,6 +29,11 @@ describe("OwnableProjectList mappings", () => {
   test("should map OwnershipTransferred event correctly", () => {
     const ownershipTransferredEvent =
       createOwnershipTransferredEvent<OwnershipTransferred>(alice, bob);
+
+    mockedProjectListNameRPCCall(
+      ownershipTransferredEvent.address.toHexString(),
+      "Awesome List"
+    );
 
     handleOwnershipTransferred(ownershipTransferredEvent);
 
