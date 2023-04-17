@@ -1,6 +1,8 @@
 #!/bin/bash
 
-NETWORK=$1
+if [ -z "${NETWORK}" ]; then
+    NETWORK=local
+fi
 
 if [ "$STAGING" ]
 then

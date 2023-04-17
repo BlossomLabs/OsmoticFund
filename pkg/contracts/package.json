@@ -3,9 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "anvil",
+    "dev": "pnpm clean && anvil",
     "build": "forge build --sizes",
-    "lint": "forge fmt",
+    "clean": "rm -rf .turbo node_modules out ../../deployments/31337",
+    "lint": "forge fmt --check",
+    "lint:fix": "forge fmt",
     "test": "forge test -v",
     "deploy": "forge script script/deploy.s.sol --rpc-url http://127.0.0.1:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 -vvv --broadcast --ffi"
   }

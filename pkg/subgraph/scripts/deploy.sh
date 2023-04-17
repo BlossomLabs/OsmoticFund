@@ -3,7 +3,10 @@
 # Arguments
 USER=$1
 NAME=$2
-NETWORK=$3
+
+if [ -z "${NETWORK}" ]; then
+    NETWORK=local
+fi
 
 # Build manifest
 echo ''
