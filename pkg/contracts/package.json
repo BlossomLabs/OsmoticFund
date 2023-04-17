@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "pnpm clean && anvil",
+    "dev": "rm -rf ../../deployments/31337 && anvil",
     "build": "forge build --sizes",
     "clean": "rm -rf .turbo node_modules out ../../deployments/31337",
     "lint": "forge fmt --check",
