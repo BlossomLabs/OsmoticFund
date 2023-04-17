@@ -22,9 +22,9 @@
     "test": "turbo run test",
     "manifest": "turbo manifest"
   },
-  "devDependencies": {
+  "dependencies": {
     "@manypkg/cli": "^0.20.0",
-    "eslint-config-custom": "workspace:*",
+    "eslint-config-custom": "0.0.0",
     "prettier": "latest",
     "turbo": "latest"
   }
