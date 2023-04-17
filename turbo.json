@@ -37,7 +37,7 @@
         "cache": false
     },
     "subgraph#build": {
-      "dependsOn": ["foundry#build", "manifest"]
+      "dependsOn": ["manifest"]
     }
   },
   "globalEnv": [
