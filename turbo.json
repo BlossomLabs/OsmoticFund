@@ -2,10 +2,6 @@
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": ["**/.env"],
   "pipeline": {
-    "manifest": {
-        "inputs": ["manifest/**", "scripts/build-manifest.sh", "subgraph.template.yaml"],
-        "outputs": ["subgraph.yaml"]
-    },
     "dev": {
       "persistent": true,
       "cache": false
@@ -23,7 +19,7 @@
     },
     "test": {
       "dependsOn": ["build"],
-      "inputs": ["test/**/*.t.sol"]
+      "inputs": ["test/**/*.t.sol", "tests/**/*.ts", "tests/**/*.test.ts"]
     },
     "lint": {},
     "lint:fix": {},
@@ -35,9 +31,6 @@
     },
     "type-check": {
         "cache": false
-    },
-    "subgraph#build": {
-      "dependsOn": ["manifest"]
     }
   },
   "globalEnv": [

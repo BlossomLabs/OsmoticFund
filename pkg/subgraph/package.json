@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "graph codegen && graph build",
+    "build": "pnpm manifest && graph codegen && graph build",
     "clean": "rm -rf .turbo node_modules generated build",
     "test": "graph test --version 0.5.4",
     "manifest": "pnpm with-env scripts/build-manifest.sh",
