@@ -72,8 +72,8 @@ contract ProjectRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable, 
     /* ** Project Functions                                                                                                              ***/
     /* *************************************************************************************************************************************/
 
-    function registrerProject(address _beneficiary, bytes calldata _contenthash)
-        external
+    function registerProject(address _beneficiary, bytes memory _contenthash)
+        public
         isValidBeneficiary(_beneficiary)
         returns (uint256 _projectId)
     {
