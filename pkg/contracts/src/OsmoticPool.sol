@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import "forge-std/console.sol";
-
 import {OwnableUpgradeable} from "@oz-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@oz-upgradeable/proxy/utils/Initializable.sol";
 
@@ -17,7 +15,6 @@ import {OsmoticController} from "./OsmoticController.sol";
 error InvalidProjectList();
 error InvalidMimeToken();
 error SupportUnderflow();
-error ProjectWithoutSupport(uint256 _projectId);
 error ProjectAlreadyActive(uint256 _projectId);
 error ProjectNeedsMoreStake(uint256 _projectId, uint256 _projectStake, uint256 _requiredStake);
 
@@ -162,10 +159,6 @@ contract OsmoticPool is Initializable, OwnableUpgradeable, OsmoticFormula {
         }
 
         uint256 projectSupport = getProjectSupport(_projectId);
-
-        if (projectSupport == 0) {
-            revert ProjectWithoutSupport(_projectId);
-        }
 
         uint256 minSupport = type(uint256).max;
         uint256 minIndex = 0;

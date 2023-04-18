@@ -7,7 +7,7 @@ import {OsmoticController} from "../../src/OsmoticController.sol";
 
 contract OsmoticControllerSetClaimDuration is Setup {
     function test_SetClaimDuration() public {
-        uint256 newDuration = 2 weeks;
+        uint256 newDuration = 5 hours;
         controller.setClaimDuration(newDuration);
 
         assertEq(controller.claimDuration(), newDuration, "claimDuration mismatch");

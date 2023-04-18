@@ -15,15 +15,21 @@ contract OsmoticPoolSupportProjects is OsmoticPoolSetup {
     event ProjectSupportUpdated(uint256 indexed round, uint256 indexed projectId, address participant, int256 delta);
 
     function testFuzz_SupportProjects(int32[MAX_ACTIVE_PROJECTS] memory _supports) public {
-        ProjectSupport[] memory projectSupports =
-            _processFuzzedSupports(MIME_HOLDER0, _supports, MAX_ACTIVE_PROJECTS, true, false);
+        bool onlyPositiveSupports = true;
+        bool onlyNonZeroSupports = false;
+        ProjectSupport[] memory projectSupports = _normalizeFuzzedSupports(
+            MIME_HOLDER0, _supports, MAX_ACTIVE_PROJECTS, onlyPositiveSupports, onlyNonZeroSupports
+        );
 
         _supportProjectsAndAssert(MIME_HOLDER0, projectSupports);
     }
 
     function testFuzz_SupportAndUnsupportProjects(int32[MAX_ACTIVE_PROJECTS] memory _supports) public {
-        ProjectSupport[] memory projectSupports =
-            _processFuzzedSupports(MIME_HOLDER0, _supports, MAX_ACTIVE_PROJECTS, false, false);
+        bool onlyPositiveSupports = false;
+        bool onlyNonZeroSupports = false;
+        ProjectSupport[] memory projectSupports = _normalizeFuzzedSupports(
+            MIME_HOLDER0, _supports, MAX_ACTIVE_PROJECTS, onlyPositiveSupports, onlyNonZeroSupports
+        );
 
         // Apply an initial support to projects with negative support changes so we don't overflow.
         for (uint256 i = 0; i < projectSupports.length; i++) {

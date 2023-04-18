@@ -20,5 +20,7 @@ contract ProjectRegistryInitialize is ProjectRegistrySetup {
         vm.expectCall(projectRegistryImplementation, abi.encodeCall(ProjectRegistry.initialize, ()));
         address initializedProjectRegistry =
             setUpProxy(projectRegistryImplementation, abi.encodeCall(ProjectRegistry.initialize, ()));
+
+        assertEq(initializedProjectRegistry, expectedInitializedProjectRegistry);
     }
 }

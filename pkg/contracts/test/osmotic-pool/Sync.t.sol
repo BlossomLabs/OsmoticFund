@@ -19,9 +19,12 @@ contract OsmoticPoolSync is OsmoticPoolSetup {
     }
 
     function testFuzz_Sync(int32[MAX_ACTIVE_PROJECTS] memory _supports, uint256 _timePassed) public {
+        bool onlyPositiveSupports = true;
+        bool onlyNonZeroSupports = true;
         // Reduce project supports to decrease test duration
-        ProjectSupport[] memory projectSupports =
-            _processFuzzedSupports(MIME_HOLDER0, _supports, MAX_ACTIVE_PROJECTS / 2, true, true);
+        ProjectSupport[] memory projectSupports = _normalizeFuzzedSupports(
+            MIME_HOLDER0, _supports, MAX_ACTIVE_PROJECTS / 2, onlyPositiveSupports, onlyNonZeroSupports
+        );
         _timePassed = bound(_timePassed, 1, ROUND_DURATION - 1);
 
         // Set up pool projects
@@ -43,9 +46,12 @@ contract OsmoticPoolSync is OsmoticPoolSetup {
     ) public {
         vm.assume(_allowance > 0);
         uint256 tokenAllowance = uint256(_allowance) * 1e18;
+        bool onlyPositiveSupports = true;
+        bool onlyNonZeroSupports = true;
         // Reduce project supports to decrease test duration
-        ProjectSupport[] memory projectSupports =
-            _processFuzzedSupports(MIME_HOLDER0, _supports, MAX_ACTIVE_PROJECTS / 2, true, true);
+        ProjectSupport[] memory projectSupports = _normalizeFuzzedSupports(
+            MIME_HOLDER0, _supports, MAX_ACTIVE_PROJECTS / 2, onlyPositiveSupports, onlyNonZeroSupports
+        );
         _timePassed = bound(_timePassed, 1, ROUND_DURATION - 1);
 
         // Set up pool projects

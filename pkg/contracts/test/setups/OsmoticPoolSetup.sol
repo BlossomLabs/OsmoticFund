@@ -88,8 +88,19 @@ abstract contract OsmoticPoolSetup is BaseSetup {
         }
     }
 
-    function _processFuzzedSupports(
-        address mimeHolder,
+    /**
+     * @dev Prepare a mime holder's set of project support changes by setting a token balance for the holder and normalizing the support changes.
+     * This involves limiting the support length, and adjusting the support values to the appropriate variable type.
+     * @param _mimeHolder The address of the holder of the MimeToken.
+     * @param _fuzzedSupports An array of fuzzed (unclear or uncertain) support values for various projects.
+     * @param _supportsLength The desired maximum length of the projectSupports array.
+     * @param _onlyPositiveSupports A flag indicating whether only positive support values should be considered.
+     * @param _onlyNonZeroSupports A flag indicating whether only non-zero support values should be considered.
+     * @return projectSupports An array of ProjectSupport structs with normalized support values.
+     *
+     */
+    function _normalizeFuzzedSupports(
+        address _mimeHolder,
         int32[MAX_ACTIVE_PROJECTS] memory _fuzzedSupports,
         uint256 _supportsLength,
         bool _onlyPositiveSupports,
@@ -101,7 +112,7 @@ abstract contract OsmoticPoolSetup is BaseSetup {
         // Set balance to maximum
         vm.mockCall(
             address(mimeToken),
-            abi.encodeWithSelector(MimeToken.balanceOf.selector, address(mimeHolder)),
+            abi.encodeWithSelector(MimeToken.balanceOf.selector, address(_mimeHolder)),
             abi.encode(type(uint256).max)
         );
 

@@ -3,12 +3,7 @@ pragma solidity ^0.8.17;
 
 import {OsmoticPoolSetup} from "../setups/OsmoticPoolSetup.sol";
 
-import {
-    ProjectAlreadyActive,
-    ProjectNeedsMoreStake,
-    ProjectNotInList,
-    ProjectWithoutSupport
-} from "../../src/OsmoticPool.sol";
+import {ProjectAlreadyActive, ProjectNeedsMoreStake, ProjectNotInList} from "../../src/OsmoticPool.sol";
 
 contract OsmoticPoolActivateProject is OsmoticPoolSetup {
     event ProjectActivated(uint256 indexed projectId);
@@ -54,12 +49,6 @@ contract OsmoticPoolActivateProject is OsmoticPoolSetup {
 
         vm.expectRevert(abi.encodeWithSelector(ProjectNotInList.selector, nonExistentProject));
         pool.activateProject(nonExistentProject);
-    }
-
-    function test_RevertWhenActivatingProjectwithoutSupport() public {
-        uint256 projectId = _createProject();
-        vm.expectRevert(abi.encodeWithSelector(ProjectWithoutSupport.selector, projectId));
-        pool.activateProject(projectId);
     }
 
     function test_RevertWhenActivatingAlreadyActivedProject() public {
