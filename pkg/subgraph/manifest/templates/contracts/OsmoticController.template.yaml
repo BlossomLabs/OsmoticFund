@@ -1,0 +1,33 @@
+# OsmoticController
+- kind: ethereum/contract
+  name: {{name}}
+  network: {{network}}
+  source:
+    abi: {{name}}
+    address: '{{address}}'
+    startBlock: {{startBlock}}
+  mapping:
+    kind: ethereum/events
+    apiVersion: 0.0.7
+    language: wasm/assemblyscript
+    entities:
+      - OsmoticController
+    abis:
+      - name: MimeToken
+        file: ./abis/MimeToken.json
+      - name: OsmoticController
+        file: ./abis/OsmoticController.json
+      - name: OsmoticPool
+        file: ./abis/OsmoticPool.json
+      - name: OwnableProjectList
+        file: ./abis/OwnableProjectList.json
+      - name: ProjectRegistry
+        file: ./abis/ProjectRegistry.json
+    eventHandlers:
+      - event: OsmoticPoolCreated(indexed address)
+        handler: handleOsmoticPoolCreated
+      - event: ProjectListCreated(indexed address)
+        handler: handleProjectListCreated
+      - event: OwnershipTransferred(indexed address,indexed address)   
+        handler: handleOwnershipTransferred
+    file: ./src/mappings/OsmoticController.ts

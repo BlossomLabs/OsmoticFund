@@ -1,0 +1,108 @@
+type OsmoticController @entity {
+  "<controller's address>"
+  id: ID!
+  owner: Bytes!
+  version: Int!
+  projectRegistry: ProjectRegistry!
+  osmoticPools: [OsmoticPool!]! @derivedFrom(field: "osmoticController")
+  lists: [ProjectList!]! @derivedFrom(field: "osmoticController")
+  tokens: [Token!]! @derivedFrom(field: "osmoticController")
+}
+
+type ProjectRegistry @entity {
+  "<project registry's address>"
+  id: ID!
+  owner: Bytes!
+  version: Int!
+  projects: [Project!]! @derivedFrom(field: "projectRegistry")
+}
+
+type Project @entity {
+  "<project registry's address>-<project's id>"
+  id: ID!
+  admin: Bytes!
+  beneficiary: Bytes!
+  contentHash: Bytes!
+  projectRegistry: ProjectRegistry!
+  projectLists: [ProjectProjectList!]! @derivedFrom(field: "project")
+}
+
+type ProjectList @entity {
+  "<project list's address>"
+  id: ID!
+  owner: Bytes
+  name: String
+  osmoticController: OsmoticController!
+  projects: [ProjectProjectList!]! @derivedFrom(field: "projectList")
+  osmoticPools: [OsmoticPool!]! @derivedFrom(field: "projectList")
+}
+
+type ProjectProjectList @entity {
+  "<project id>-<ownable project list id>"
+  id: ID!
+  project: Project!
+  projectList: ProjectList!
+}
+
+type OsmoticPool @entity {
+  "<osmotic controller's address>-<pool's address>"
+  id: ID!
+  address: Bytes!
+  owner: Bytes!
+  osmoticController: OsmoticController!
+  maxActiveProjects: Int!
+  fundingToken: Token!
+  mimeToken: Token!
+  projectList: ProjectList!
+  osmoticParams: OsmoticParams!
+  poolProjects: [PoolProject!]! @derivedFrom(field: "osmoticPool")
+}
+
+type PoolProject @entity {
+  "<osmotic pool entity's id>-<project's id>"
+  id: ID!
+  osmoticPool: OsmoticPool!
+  project: Project!
+  active: Boolean!
+  flowLastRate: BigInt!
+  flowLastTime: BigInt!
+  currentRound: BigInt!
+  poolProjectSupports: [PoolProjectSupport!]! @derivedFrom(field: "poolProject")
+}
+
+type PoolProjectSupport @entity {
+  "<pool project entity's id>-<round>"
+  id: ID!
+  poolProject: PoolProject!
+  round: BigInt!
+  support: BigInt!
+  poolProjectParticipantsSupports: [PoolProjectParticipantSupport!]! @derivedFrom(field: "poolProjectSupport")
+
+}
+
+type PoolProjectParticipantSupport @entity {
+  "<pool project support entity's id>-<participant's address>" 
+  id: ID!
+  poolProjectSupport: PoolProjectSupport!
+  participant: Bytes!
+  support: BigInt!
+}
+
+type OsmoticParams @entity {
+  "<osmotic pool's id>"
+  id: ID!
+  osmoticPool: OsmoticPool!
+  decay: BigInt!
+  drop: BigInt!
+  maxFlow: BigInt!
+  minStakeRatio: BigInt!
+}
+
+type Token @entity {
+  "<token's address>"
+  id: ID!
+  decimals: Int!
+  name: String!
+  symbol: String!
+  osmoticController: OsmoticController
+}

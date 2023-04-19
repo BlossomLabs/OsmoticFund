@@ -16,7 +16,7 @@ import {OsmoticParams} from "../../src/OsmoticFormula.sol";
 
 abstract contract BaseSetup is SetupScript, Test, TestUtils {
     uint256 VERSION = 1;
-    
+
     // fork env
     uint256 GOERLI_FORK_BLOCK_NUMBER = 8689679; // Mime token factory deployment block
     string GOERLI_RPC_URL = vm.envOr("GOERLI_RPC_URL", string("https://rpc.ankr.com/eth_goerli"));

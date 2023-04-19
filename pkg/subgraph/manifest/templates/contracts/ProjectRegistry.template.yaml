@@ -1,0 +1,22 @@
+# ProjectRegistry
+- kind: ethereum/contract
+  name: ProjectRegistry
+  network: {{network}}
+  source:
+    abi: ProjectRegistry
+  mapping:
+    kind: ethereum/events
+    apiVersion: 0.0.7
+    language: wasm/assemblyscript
+    entities:
+      - Project
+      - ProjectRegistry
+    abis:
+      - name: ProjectRegistry
+        file: ./abis/ProjectRegistry.json
+    eventHandlers:
+      - event: ProjectUpdated(indexed uint256,address,address,bytes)
+        handler: handleProjectUpdated
+      - event: OwnershipTransferred(indexed address,indexed address)   
+        handler: handleOwnershipTransferred
+    file: ./src/mappings/ProjectRegistry.ts

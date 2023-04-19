@@ -1,53 +1,60 @@
 name: CI
 
 on:
+  pull_request:
+    branches: ["*"]
   push:
     branches: ["master"]
-  pull_request:
-    types: [opened, synchronize]
+  merge_group:
+
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
 
 jobs:
   build:
     name: Build, Lint and Test
-    timeout-minutes: 15
-    runs-on: ubuntu-latest
     env:
-      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
       GOERLI_RPC_URL: ${{ secrets.GOERLI_RPC_URL }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Check out code
         uses: actions/checkout@v3
-        with:
-          submodules: recursive
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: nightly
 
-      - uses: pnpm/action-setup@v2.0.1
-        with:
-          version: 6.32.2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2.2.4
 
-      - name: Setup Node.js environment
+      - name: Setup Node 18
         uses: actions/setup-node@v3
         with:
-          node-version: 16
-          cache: "pnpm"
+          node-version: 18
 
-      - name: Cache pnpm modules
-        uses: actions/cache@v2
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: |
+          echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
         with:
-          path: "**/node_modules"
-          key: pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
-      - name: Install dependencies
+      - name: Install dependencies (with cache)
         run: pnpm install
 
-      - name: Lint
-        run: pnpm lint
+      - name: Build, test, lint and type-check
+        run: pnpm turbo test lint type-check
+        env:
+          SKIP_ENV_VALIDATION: true
 
-      - name: Build and Test
-        run: pnpm test
+      - name: Check workspaces
+        run: pnpm manypkg check

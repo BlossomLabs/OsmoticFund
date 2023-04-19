@@ -1,6 +1,11 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": ["**/.env"],
   "pipeline": {
+    "dev": {
+      "persistent": true,
+      "cache": false
+    },
     "build": {
       "dependsOn": ["^build"],
       "outputs": [
@@ -14,18 +19,22 @@
     },
     "test": {
       "dependsOn": ["build"],
-      "inputs": ["test/**/*.t.sol"],
-      "outputs": [],
-      "env": ["GOERLI_RPC_URL"]
+      "inputs": ["test/**/*.t.sol", "tests/**/*.ts", "tests/**/*.test.ts"]
     },
-    "lint": {
-      "outputs": []
+    "lint": {},
+    "lint:fix": {},
+    "clean": {
+        "cache": false
     },
-    "dev": {
-      "cache": false
+    "//#clean": {
+        "cache": false
     },
-    "subgraph#build": {
-      "dependsOn": ["foundry#build"]
+    "type-check": {
+        "cache": false
     }
-  }
+  },
+  "globalEnv": [
+    "SKIP_ENV_VALIDATION"
+  ]
+  
 }

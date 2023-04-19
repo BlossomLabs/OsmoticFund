@@ -44,4 +44,9 @@ pkg/contracts/broadcast/**/dry-run/
 
 # subgraph
 pkg/subgraph/generated
-pkg/**/data
+subgraph.yaml
+pkg/subgraph/tests/.*
+matchstick
+
+# services
+pkg/services/graph-node/data

@@ -1,0 +1,35 @@
+# OsmoticPool
+- kind: ethereum/contract
+  name: OsmoticPool
+  network: {{network}}
+  source:
+    abi: OsmoticPool
+  mapping:
+    kind: ethereum/events
+    apiVersion: 0.0.7
+    language: wasm/assemblyscript
+    entities:
+      - OsmoticPool
+      - PoolProject
+      - PoolProjectSupport
+      - PoolProjectParticipantSupport
+      - OsmoticParams
+    abis:
+      - name: OsmoticPool
+        file: ./abis/OsmoticPool.json
+      - name: OsmoticController
+        file: ./abis/OsmoticController.json
+    eventHandlers:
+      - event: ProjectActivated(indexed uint256)
+        handler: handleProjectActivated
+      - event: ProjectDeactivated(indexed uint256)
+        handler: handleProjectDeactivated
+      - event: ProjectSupportUpdated(indexed uint256,indexed uint256,address,int256)
+        handler: handleProjectSupportUpdated
+      - event: FlowSynced(indexed uint256,address,uint256)
+        handler: handleFlowSynced
+      - event: OsmoticParamsChanged(uint256,uint256,uint256,uint256)
+        handler: handleOsmoticParamsChanged
+      - event: OwnershipTransferred(indexed address,indexed address)   
+        handler: handleOwnershipTransferred
+    file: ./src/mappings/OsmoticPool.ts

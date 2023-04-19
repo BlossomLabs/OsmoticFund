@@ -3,16 +3,22 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "graph codegen && graph build",
-    "create-local": "graph create --node http://localhost:8020/ blossom/counter",
-    "remove-local": "graph remove --node http://localhost:8020/ blossom/counter",
-    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 blossom/counter"
-  },
-  "dependencies": {
-    "@graphprotocol/graph-cli": "^0.37.2",
-    "@graphprotocol/graph-ts": "^0.29.1"
+    "build": "pnpm manifest && graph codegen && graph build",
+    "clean": "rm -rf .turbo node_modules generated build",
+    "test": "graph test --version 0.5.4",
+    "manifest": "pnpm with-env scripts/build-manifest.sh",
+    "deploy": "pnpm with-env scripts/deploy.sh blossomlabs osmoticfund",
+    "create-local": "graph create --node http://localhost:8020/ blossomlabs/osmoticfund-goerli",
+    "remove-local": "graph remove --node http://localhost:8020/ blossomlabs/osmoticfund-goerli",
+    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 blossomlabs/osmoticfund-goerli",
+    "with-env": "dotenv -e ../../.env --"
   },
   "devDependencies": {
+    "@graphprotocol/graph-cli": "^0.46.1",
+    "@graphprotocol/graph-ts": "^0.29.3",
+    "assemblyscript": "0.19.20",
+    "dotenv-cli": "^7.2.1",
+    "matchstick-as": "^0.5.2",
     "mustache": "^4.2.0"
   }
 }
