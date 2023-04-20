@@ -50,3 +50,6 @@ matchstick
 
 # services
 pkg/services/graph-node/data
+
+# typescript
+*.tsbuildinfo

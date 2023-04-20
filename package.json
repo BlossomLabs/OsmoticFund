@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@manypkg/cli": "^0.20.0",
-    "eslint-config-custom": "0.0.0",
+    "eslint-config-custom": "workspace:*",
     "prettier": "latest",
     "turbo": "latest"
   }
