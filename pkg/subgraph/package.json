@@ -14,8 +14,8 @@
     "with-env": "dotenv -e ../../.env --"
   },
   "devDependencies": {
-    "@graphprotocol/graph-cli": "^0.46.1",
-    "@graphprotocol/graph-ts": "^0.29.3",
+    "@graphprotocol/graph-cli": "^0.58.0",
+    "@graphprotocol/graph-ts": "^0.31.0",
     "assemblyscript": "0.19.20",
     "dotenv-cli": "^7.2.1",
     "matchstick-as": "^0.5.2",
