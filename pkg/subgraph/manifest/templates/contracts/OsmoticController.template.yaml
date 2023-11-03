@@ -28,6 +28,8 @@
         handler: handleOsmoticPoolCreated
       - event: ProjectListCreated(indexed address)
         handler: handleProjectListCreated
+      - event: MimeTokenCreated(indexed address)
+        handler: handleMimeTokenCreated
       - event: OwnershipTransferred(indexed address,indexed address)   
         handler: handleOwnershipTransferred
     file: ./src/mappings/OsmoticController.ts

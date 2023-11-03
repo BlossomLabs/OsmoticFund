@@ -10,6 +10,7 @@ import {
 import { OsmoticPool } from "../../generated/templates/OsmoticPool/OsmoticPool";
 
 import { formatAddress, join, ZERO_ADDR } from "./ids";
+import { loadOrCreateTokenEntity } from "./token";
 
 export function buildOsmoticPoolId(poolAddress: Address): string {
   return formatAddress(poolAddress);
@@ -58,10 +59,8 @@ export function loadOrCreateOsmoticPool(
       osmoticPoolContract.controller()
     );
     osmoticPool.maxActiveProjects = osmoticPoolContract.MAX_ACTIVE_PROJECTS();
-    osmoticPool.fundingToken = formatAddress(
-      osmoticPoolContract.fundingToken()
-    );
-    osmoticPool.mimeToken = formatAddress(osmoticPoolContract.mimeToken());
+    osmoticPool.fundingToken = loadOrCreateTokenEntity(osmoticPoolContract.fundingToken()).id;
+    osmoticPool.mimeToken = loadOrCreateTokenEntity(osmoticPoolContract.mimeToken()).id;
     osmoticPool.projectList = formatAddress(osmoticPoolContract.projectList());
     osmoticPool.osmoticParams = loadOrCreateOsmoticParams(poolAddress).id;
 
