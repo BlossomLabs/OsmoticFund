@@ -12,7 +12,10 @@
     language: wasm/assemblyscript
     entities:
       - OsmoticController
+      - Token
     abis:
+      - name: ERC20
+        file: ./abis/ERC20.json
       - name: MimeToken
         file: ./abis/MimeToken.json
       - name: OsmoticController

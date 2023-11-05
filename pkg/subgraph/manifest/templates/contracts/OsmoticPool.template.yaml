@@ -14,9 +14,10 @@
       - PoolProjectSupport
       - PoolProjectParticipantSupport
       - OsmoticParams
+      - Token
     abis:
-      - name: MimeToken
-        file: ./abis/MimeToken.json
+      - name: ERC20
+        file: ./abis/ERC20.json
       - name: OsmoticPool
         file: ./abis/OsmoticPool.json
       - name: OsmoticController

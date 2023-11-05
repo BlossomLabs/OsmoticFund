@@ -1,6 +1,6 @@
 import { Address } from "@graphprotocol/graph-ts";
 
-import { MimeToken as MimeTokenContract } from "../../generated/OsmoticController/MimeToken";
+import { ERC20 as ERC20Contract } from "../../generated/OsmoticController/ERC20";
 import { Token as TokenEntity } from "../../generated/schema";
 
 import { formatAddress } from "./ids";
@@ -14,10 +14,9 @@ export function loadOrCreateTokenEntity(tokenAddress: Address): TokenEntity {
 
   let token = TokenEntity.load(tokenId);
   if (token == null) {
-    token = new TokenEntity(tokenId);
+    const tokenContract = ERC20Contract.bind(tokenAddress);
 
-    // we use MimeTokenContract to get the token's name, symbol and decimals
-    const tokenContract = MimeTokenContract.bind(tokenAddress);
+    token = new TokenEntity(tokenId);
 
     token.name = tokenContract.name();
     token.symbol = tokenContract.symbol();
